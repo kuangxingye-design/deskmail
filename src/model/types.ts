@@ -4,8 +4,8 @@
  * 骨架期字段已定；后续任务不得随意改字段，变更需走设计澄清。
  */
 
-/** 邮箱供应商（v0.1 仅三类） */
-export type Provider = 'qq' | 'netease163' | 'netease162';
+/** 邮箱供应商（v0.1：QQ / 126 / 163 / 162） */
+export type Provider = 'qq' | 'netease126' | 'netease163' | 'netease162';
 
 /** 账号连接状态 */
 export type AccountStatus = 'ok' | 'auth_failed' | 'sync_error';

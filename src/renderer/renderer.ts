@@ -23,7 +23,7 @@ function renderList(items: MailSummary[]): void {
 
     const sender = document.createElement('span');
     sender.className = 'sender';
-    sender.textContent = item.senderName ?? item.senderEmail;
+    sender.textContent = item.senderName || item.senderEmail;
 
     const subject = document.createElement('span');
     subject.className = 'subject';
