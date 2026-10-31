@@ -3,8 +3,8 @@
   "compilerOptions": {
     "module": "Node16",
     "moduleResolution": "Node16",
-    "rootDir": "src/main",
-    "outDir": "dist/main",
+    "rootDir": "src",
+    "outDir": "dist",
     "types": ["node"],
     "verbatimModuleSyntax": false
   },

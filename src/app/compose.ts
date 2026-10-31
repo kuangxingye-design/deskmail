@@ -3,7 +3,7 @@
  * 骨架期唯一装配点；后续任务逐个把桩替换为真实实现（接口不变）。
  */
 import { FixtureImapClient } from '../imap/fixture';
-import { StubHtmlSanitizer, StubMessageParser } from '../content/stub';
+import { StubMessageParser } from '../content/stub';
 import { InMemoryMailStore } from '../store/memory';
 import { StubSyncEngine } from '../sync/stub';
 import { StubAccountService } from '../accounts/stub';
@@ -29,11 +29,11 @@ export interface App {
  */
 export function compose(platform: PlatformServices): App {
   const store = new InMemoryMailStore();
-  // 每账号独立 IMAP 会话：mock 邮件按账号隔离（5 账号不再各拿同一批 8 封）。
-  // 真实实现（#5）落地后，工厂改为按账号凭据建真实连接，签名不变。
+  // 每账号独立 IMAP 会话：mock 邮件按账号隔离。
+  // 真实实现（#8）落地后，工厂改为按账号凭据建真实连接，签名不变。
   const createImap = (accountId: string): ImapClient =>
     new FixtureImapClient(MOCK_RAW_MESSAGES_BY_ACCOUNT[accountId] ?? []);
-  const parser = new StubMessageParser(new StubHtmlSanitizer());
+  const parser = new StubMessageParser();
 
   const sync = new StubSyncEngine(createImap, parser, store, MOCK_ACCOUNTS);
   const accounts = new StubAccountService(MOCK_ACCOUNTS);

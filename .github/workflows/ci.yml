@@ -17,6 +17,7 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm run lint
+      - run: npm test
       - run: npm run build
 
   # 骨架 mock 链路冒烟：Electron 启动 → renderer 上报校验 → exit 0/1/2（#3 验收）
