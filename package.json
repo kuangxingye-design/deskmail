@@ -1,0 +1,24 @@
+{
+  "name": "deskmail",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Windows 桌面磨砂玻璃邮件速览卡片（v0.1）",
+  "main": "dist/main/main.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.main.json && node scripts/build-renderer.mjs",
+    "typecheck": "tsc -p tsconfig.main.json --noEmit && tsc -p tsconfig.renderer.json",
+    "lint": "eslint .",
+    "start": "npm run build && electron .",
+    "smoke": "npm run build && electron . --smoke"
+  },
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^26.6.6",
+    "electron": "^45.2.1",
+    "esbuild": "^0.28.2",
+    "eslint": "^10.14.0",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.72.1"
+  }
+}
