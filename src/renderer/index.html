@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'">
+  <title>DeskMail（骨架）</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <header>
+    <h1>DeskMail</h1>
+    <p class="subtitle">空骨架：数据经 ui → inbox → store → sync 桩 ← FixtureImapClient 链路渲染</p>
+  </header>
+  <p class="unread">未读：<strong id="unread-count">0</strong></p>
+  <ul id="mail-list" class="mail-list"></ul>
+  <script src="./renderer.js" defer></script>
+</body>
+</html>
