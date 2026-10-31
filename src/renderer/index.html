@@ -2,17 +2,107 @@
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'">
-  <title>DeskMail（骨架）</title>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:">
+  <title>DeskMail</title>
   <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./app.css">
 </head>
 <body>
-  <header>
-    <h1>DeskMail</h1>
-    <p class="subtitle">空骨架：数据经 ui → inbox → store → sync 桩 ← FixtureImapClient 链路渲染</p>
-  </header>
-  <p class="unread">未读：<strong id="unread-count">0</strong></p>
-  <ul id="mail-list" class="mail-list"></ul>
+  <main class="card" id="card">
+    <header class="card-header">
+      <div class="title-row">
+        <div>
+          <h1 id="cardTitle">收件箱</h1>
+          <p class="subtitle" id="cardSubtitle">
+            <strong id="unreadCount">0</strong> 封未读 · <span id="accountCount">0</span> 个账号
+          </p>
+        </div>
+        <div class="header-actions">
+          <button class="icon-btn" id="settingsBtn" type="button" aria-label="账号管理" title="账号管理">⚙</button>
+          <button class="back-pill" id="backBtn" type="button">← 返回列表</button>
+        </div>
+      </div>
+      <div class="account-filter" id="accountFilter">
+        <button class="filter-trigger" id="filterTrigger" type="button" aria-haspopup="listbox" aria-expanded="false">
+          <span class="chip-avatar all" id="filterAvatar">全</span>
+          <span class="filter-label" id="filterLabel">全部账号</span>
+          <span class="filter-count" id="filterCount"></span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+      </div>
+    </header>
+
+    <section class="view list-view" id="listView">
+      <ul class="mail-list" id="mailList"></ul>
+      <div class="empty" id="emptyState" hidden>这个账号暂时没有邮件</div>
+    </section>
+
+    <section class="view detail-view" id="detailView" hidden>
+      <div class="detail-scroll" id="detailScroll">
+        <h2 class="detail-subject" id="detailSubject"></h2>
+        <div class="detail-meta">
+          <span id="detailSender"></span>
+          <span id="detailTime"></span>
+          <span class="acct" id="detailAccount"></span>
+          <span class="detail-email" id="detailEmail"></span>
+        </div>
+        <div class="importance" id="importance" role="group" aria-label="重要程度">
+          <span class="label">重要程度</span>
+          <button class="imp-btn" type="button" data-importance="normal">一般</button>
+          <button class="imp-btn" type="button" data-importance="important">重要</button>
+          <button class="imp-btn" type="button" data-importance="critical">严重</button>
+        </div>
+        <article class="mail-body" id="detailBody"></article>
+      </div>
+      <div class="detail-actions">
+        <button class="primary-btn" id="copyTextBtn" type="button">复制全文</button>
+      </div>
+    </section>
+
+    <section class="account-sheet" id="accountSheet" hidden>
+      <div class="sheet-head">
+        <h2>账号管理</h2>
+        <button class="icon-btn" id="sheetCloseBtn" type="button" aria-label="关闭">✕</button>
+      </div>
+      <p class="sheet-note">
+        筛选栏只显示短备注名；完整邮箱地址在这里查看。添加账号的提交逻辑由账号管理任务接入。
+      </p>
+      <ul class="account-list" id="accountList"></ul>
+      <button class="primary-btn" id="addAccountBtn" type="button">＋ 添加账号</button>
+      <form class="account-form" id="accountForm" hidden>
+        <label>供应商
+          <select id="accountProvider">
+            <option value="qq">QQ</option>
+            <option value="netease126">126</option>
+            <option value="netease163">163</option>
+            <option value="netease162">162</option>
+          </select>
+        </label>
+        <label>邮箱
+          <input id="accountEmail" type="email" placeholder="you@example.com" autocomplete="off">
+        </label>
+        <label>备注名
+          <input id="accountAlias" type="text" maxlength="12" placeholder="工作 / 小号 / 订阅">
+        </label>
+        <label>授权码
+          <input id="accountAuthCode" type="password" autocomplete="off" placeholder="仅用于本地连接测试">
+        </label>
+        <div class="form-actions">
+          <button class="primary-btn" id="accountSubmit" type="submit">添加（占位）</button>
+          <button class="ghost-btn" id="accountCancel" type="button">取消</button>
+        </div>
+        <p class="form-error" id="accountFormError" hidden></p>
+      </form>
+    </section>
+
+    <footer class="card-footer">
+      数据经 inbox 链路 · 磨砂/置顶/热键由桌面壳任务接入
+    </footer>
+  </main>
+
+  <div class="filter-menu" id="filterMenu" role="listbox" aria-label="选择账号" hidden></div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
   <script src="./renderer.js" defer></script>
 </body>
 </html>

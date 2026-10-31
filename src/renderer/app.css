@@ -1,0 +1,109 @@
+/*
+ * Electron renderer 覆盖层：窗口本身就是卡片。
+ * 原型里的桌面壁纸 / faux window / 顶部提示不进入真实应用。
+ */
+html,
+body {
+  height: 100%;
+}
+
+body {
+  padding: 0;
+  background:
+    radial-gradient(900px 600px at 18% 20%, #1d4ed8 0%, transparent 60%),
+    radial-gradient(800px 600px at 82% 72%, #7c3aed 0%, transparent 62%),
+    radial-gradient(700px 500px at 55% 10%, #0ea5e9 0%, transparent 55%),
+    linear-gradient(135deg, #0b1220 0%, #131a2b 48%, #0a0f1a 100%);
+}
+
+body .card {
+  position: fixed;
+  left: 10px;
+  top: 10px;
+  right: 10px;
+  bottom: 10px;
+  width: auto !important;
+  height: auto !important;
+}
+
+.account-sheet {
+  overflow-y: auto;
+}
+
+.account-sheet .account-list {
+  flex: 0 0 auto;
+  min-height: 0;
+  overflow: visible;
+}
+
+.account-form {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.account-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.account-form input,
+.account-form select {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 12px;
+  outline: none;
+}
+
+.account-form input:focus,
+.account-form select:focus {
+  border-color: rgba(140, 200, 255, 0.5);
+}
+
+.account-form select option {
+  background: #111827;
+  color: var(--text);
+}
+
+.form-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.form-actions .primary-btn {
+  flex: 1;
+}
+
+.ghost-btn {
+  padding: 11px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.ghost-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--text);
+}
+
+.form-error {
+  margin: 0;
+  color: var(--critical);
+  font-size: 11px;
+  line-height: 1.5;
+}
