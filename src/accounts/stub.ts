@@ -16,11 +16,14 @@ export class StubAccountService implements AccountService {
   }
 
   update(id: string, patch: Partial<Pick<Account, 'alias' | 'color'>>): Account {
-    const account = this.accounts.find((a) => a.id === id);
-    if (!account) {
+    const index = this.accounts.findIndex((a) => a.id === id);
+    if (index < 0) {
       throw new Error(`account not found: ${id}`);
     }
-    return { ...account, ...patch };
+    // 写回数组：list() 必须能看到 alias/color 变更（骨架期内存桩；#9 落持久化）
+    const updated = { ...this.accounts[index], ...patch };
+    this.accounts[index] = updated;
+    return updated;
   }
 
   remove(_id: string): void {

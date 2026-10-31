@@ -11,8 +11,9 @@ import { InboxServiceImpl } from '../inbox/service';
 import type { InboxService as InboxServiceContract } from '../inbox/types';
 import type { SyncEngine } from '../sync/types';
 import type { AccountService } from '../accounts/types';
+import type { ImapClient } from '../imap/types';
 import type { PlatformServices } from '../platform/types';
-import { MOCK_ACCOUNTS, MOCK_RAW_MESSAGES } from './mock-data';
+import { MOCK_ACCOUNTS, MOCK_RAW_MESSAGES_BY_ACCOUNT } from './mock-data';
 
 export interface App {
   inbox: InboxServiceContract;
@@ -28,10 +29,13 @@ export interface App {
  */
 export function compose(platform: PlatformServices): App {
   const store = new InMemoryMailStore();
-  const imap = new FixtureImapClient(MOCK_RAW_MESSAGES);
+  // 每账号独立 IMAP 会话：mock 邮件按账号隔离（5 账号不再各拿同一批 8 封）。
+  // 真实实现（#5）落地后，工厂改为按账号凭据建真实连接，签名不变。
+  const createImap = (accountId: string): ImapClient =>
+    new FixtureImapClient(MOCK_RAW_MESSAGES_BY_ACCOUNT[accountId] ?? []);
   const parser = new StubMessageParser(new StubHtmlSanitizer());
 
-  const sync = new StubSyncEngine(imap, parser, store, MOCK_ACCOUNTS);
+  const sync = new StubSyncEngine(createImap, parser, store, MOCK_ACCOUNTS);
   const accounts = new StubAccountService(MOCK_ACCOUNTS);
   const inbox = new InboxServiceImpl(store, accounts);
 

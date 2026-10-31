@@ -1,6 +1,7 @@
 /**
- * StubSyncEngine（桩实现）：把 FixtureImapClient 的 mock 数据经解析器写入 store，
- * 用于验证「imap → content → store」接线。loadOlder / startScheduler 留空（#8）。
+ * StubSyncEngine（桩实现）：按账号经 createImap 工厂创建独立 ImapClient 会话，
+ * 把各自 fixture 的 mock 数据经解析器写入 store，验证「imap → content → store」接线。
+ * loadOlder / startScheduler 留空（#8）。
  */
 import type { ImapClient, ProviderConfig } from '../imap/types';
 import { PROVIDER_CONFIGS } from '../imap/types';
@@ -12,7 +13,8 @@ import { RECENT_WINDOW } from './types';
 
 export class StubSyncEngine implements SyncEngine {
   constructor(
-    private readonly imap: ImapClient,
+    /** 每账号一个独立会话（fixture 数据按账号隔离）；真实实现（#5）保持同签名 */
+    private readonly createImap: (accountId: string) => ImapClient,
     private readonly parser: MessageParser,
     private readonly store: MailStore,
     private readonly accounts: Account[],
@@ -23,13 +25,14 @@ export class StubSyncEngine implements SyncEngine {
     if (!account) {
       return { accountId, status: 'failed', fetched: 0, error: 'account not found' };
     }
+    const imap = this.createImap(accountId);
     try {
       const cfg: ProviderConfig = PROVIDER_CONFIGS[account.provider];
-      await this.imap.connect(cfg);
-      const headers = await this.imap.fetchHeaders(1, RECENT_WINDOW);
+      await imap.connect(cfg);
+      const headers = await imap.fetchHeaders(1, RECENT_WINDOW);
       let fetched = 0;
       for (const header of headers) {
-        const raw = await this.imap.fetchMessage(header.imapUid);
+        const raw = await imap.fetchMessage(header.imapUid);
         const parsed = this.parser.parse(raw);
         const message: Message = {
           id: `${accountId}:${raw.imapUid}`,
@@ -76,6 +79,9 @@ export class StubSyncEngine implements SyncEngine {
       const error = err instanceof Error ? err.message : String(err);
       this.store.saveSyncState({ accountId, lastUid: 0, windowStartUid: 0, status: 'failed', lastError: error });
       return { accountId, status: 'failed', fetched: 0, error };
+    } finally {
+      // 每账号会话用完即关（真实实现 #5 同样持有 per-account 连接）
+      await imap.close();
     }
   }
 

@@ -60,8 +60,13 @@ async function boot(): Promise<void> {
   }
   const unreadAfter = totalUnread(app);
 
+  // 按账号隔离校验：mock 共 8 封、每封只属一个账号，(senderEmail, subject) 不应重复。
+  // 若组合根工厂退化回「共享同一批 fixture」，count 会膨胀为 5×8=40 且大量重复，此检查即失败。
+  const distinctCount = new Set(summaries.map((s) => `${s.senderEmail}|${s.subject}`)).size;
+  const isolated = distinctCount === summaries.length;
+
   const report = {
-    ok: summaries.length > 0 && unreadAfter === Math.max(0, unreadBefore - 1),
+    ok: summaries.length > 0 && isolated && unreadAfter === Math.max(0, unreadBefore - 1),
     count: summaries.length,
     unreadBefore,
     unreadAfter,
