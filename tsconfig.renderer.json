@@ -1,0 +1,22 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "noEmit": true,
+    "types": []
+  },
+  "include": [
+    "src/renderer/**/*",
+    "src/app/**/*",
+    "src/model/**/*",
+    "src/imap/**/*",
+    "src/content/**/*",
+    "src/store/**/*",
+    "src/sync/**/*",
+    "src/accounts/**/*",
+    "src/inbox/**/*",
+    "src/platform/**/*"
+  ]
+}

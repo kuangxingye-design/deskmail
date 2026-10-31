@@ -1,0 +1,7 @@
+node_modules/
+dist/
+*.log
+*.tsbuildinfo
+
+# 原型预览截图不入库（仅收录 prototype/deskmail-v0.1.html）
+prototype/*.png

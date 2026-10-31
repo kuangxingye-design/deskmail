@@ -1,0 +1,88 @@
+/* 最小验证壳样式；完整 UI 与磨砂卡片样式留给 #4/#10 */
+:root {
+  --bg: #0b1220;
+  --panel: #131a2b;
+  --text: #f5f8ff;
+  --muted: rgba(235, 242, 255, 0.62);
+  --accent: #8cc8ff;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+  padding: 16px;
+}
+
+header h1 {
+  margin: 0 0 4px;
+  font-size: 18px;
+}
+
+.subtitle {
+  margin: 0 0 12px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.unread {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.mail-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+}
+
+.mail-row {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  padding: 8px 6px;
+  border-radius: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 12px;
+}
+
+.mail-row .sender {
+  flex: none;
+  max-width: 40%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+}
+
+.mail-row .subject {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+}
+
+.mail-row.unread .sender,
+.mail-row.unread .subject {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.mail-row.unread::before {
+  content: "";
+  flex: none;
+  width: 6px;
+  height: 6px;
+  margin-top: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+}
