@@ -1,0 +1,1482 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DeskMail v0.1 · 磨砂玻璃邮件卡片原型</title>
+<style>
+  :root {
+    --glass: rgba(255, 255, 255, 0.10);
+    --border: rgba(255, 255, 255, 0.22);
+    --text: #f5f8ff;
+    --muted: rgba(235, 242, 255, 0.62);
+    --faint: rgba(235, 242, 255, 0.38);
+    --accent: #8cc8ff;
+    --important: #ffb86b;
+    --critical: #ff6f86;
+  }
+
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { height: 100%; }
+
+  body {
+    margin: 0;
+    overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif;
+    color: var(--text);
+    background: #0b1220;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ---------- 桌面背景 ---------- */
+  .wallpaper {
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(900px 600px at 18% 20%, #1d4ed8 0%, transparent 60%),
+      radial-gradient(800px 600px at 82% 72%, #7c3aed 0%, transparent 62%),
+      radial-gradient(700px 500px at 55% 10%, #0ea5e9 0%, transparent 55%),
+      linear-gradient(135deg, #0b1220 0%, #131a2b 48%, #0a0f1a 100%);
+  }
+
+  .blob {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(70px);
+    opacity: 0.5;
+    pointer-events: none;
+  }
+  .b1 { width: 420px; height: 420px; background: #2563eb; left: -90px; top: 8%; }
+  .b2 { width: 480px; height: 480px; background: #a855f7; right: -120px; bottom: -80px; }
+  .b3 { width: 320px; height: 320px; background: #06b6d4; right: 20%; top: -90px; }
+
+  /* 背后的“工作窗口”，用来示意卡片始终置顶 */
+  .faux-window {
+    position: fixed;
+    left: 44%;
+    top: 16%;
+    width: 560px;
+    height: 460px;
+    padding: 18px;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.045);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.35);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    opacity: 0.85;
+    pointer-events: none;
+  }
+  .faux-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 24px; }
+  .faux-dots { display: flex; gap: 6px; }
+  .faux-dots span {
+    width: 9px; height: 9px; border-radius: 50%;
+    background: rgba(255, 255, 255, 0.18);
+  }
+  .faux-title {
+    font-size: 11px;
+    letter-spacing: 0.4px;
+    color: rgba(255, 255, 255, 0.30);
+  }
+  .faux-line {
+    height: 10px;
+    border-radius: 5px;
+    background: rgba(255, 255, 255, 0.07);
+    margin: 14px 0;
+  }
+  .faux-line.w80 { width: 80%; }
+  .faux-line.w60 { width: 60%; }
+  .faux-line.w40 { width: 40%; }
+  .faux-block {
+    height: 132px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.05);
+    margin-top: 24px;
+  }
+
+  /* ---------- 顶部操作提示 ---------- */
+  .desktop-hint {
+    position: fixed;
+    top: 26px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 5;
+    padding: 9px 16px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    color: var(--muted);
+    font-size: 12px;
+    white-space: nowrap;
+  }
+  kbd {
+    font-family: inherit;
+    font-size: 11px;
+    padding: 1px 6px;
+    border-radius: 5px;
+    background: rgba(255, 255, 255, 0.14);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    color: var(--text);
+  }
+
+  /* ---------- 磨砂玻璃卡片 ---------- */
+  .card {
+    position: fixed;
+    left: 8vw;
+    top: 12vh;
+    width: min(92vw, 420px);
+    height: min(78vh, 640px);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border-radius: 22px;
+    background: linear-gradient(160deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.06));
+    border: 1px solid var(--border);
+    box-shadow:
+      0 30px 90px rgba(0, 0, 0, 0.55),
+      inset 0 1px 0 rgba(255, 255, 255, 0.25);
+    backdrop-filter: blur(30px) saturate(160%);
+    -webkit-backdrop-filter: blur(30px) saturate(160%);
+    outline: none;
+    z-index: 10;
+    transition: opacity 0.22s ease, transform 0.22s ease, box-shadow 0.2s ease;
+  }
+  .card.is-hidden {
+    opacity: 0;
+    transform: scale(0.97) translateY(8px);
+    pointer-events: none;
+  }
+  .card.focused {
+    box-shadow:
+      0 0 0 1px rgba(255, 255, 255, 0.40),
+      0 30px 90px rgba(0, 0, 0, 0.55),
+      inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  }
+
+  .card-header {
+    position: relative;
+    z-index: 20;
+    flex: none;
+    padding: 18px 18px 10px;
+  }
+  .title-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .title-row h1 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 650;
+    letter-spacing: 0.2px;
+  }
+  .subtitle {
+    margin: 4px 0 0;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .subtitle strong { color: var(--text); font-weight: 600; }
+
+  .icon-btn {
+    flex: none;
+    width: 32px;
+    height: 32px;
+    display: grid;
+    place-items: center;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--muted);
+    font-size: 15px;
+    cursor: pointer;
+    transition: 0.15s;
+  }
+  .icon-btn:hover { background: rgba(255, 255, 255, 0.14); color: var(--text); }
+
+  .header-actions { display: flex; align-items: center; gap: 8px; }
+  .back-pill {
+    display: none;
+    align-items: center;
+    gap: 4px;
+    padding: 7px 11px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text);
+    font-size: 12px;
+    font-family: inherit;
+    cursor: pointer;
+    transition: 0.15s;
+  }
+  .back-pill:hover { background: rgba(255, 255, 255, 0.15); }
+  .card.detail-mode .back-pill { display: inline-flex; }
+  .card.detail-mode #settingsBtn { display: none; }
+
+  /* 账号筛选：按账号（不是供应商），长地址收进下拉菜单 */
+  .account-filter {
+    position: relative;
+    z-index: 40;
+    margin-top: 14px;
+  }
+  .filter-trigger {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text);
+    font-size: 12.5px;
+    font-family: inherit;
+    cursor: pointer;
+    transition: 0.15s;
+  }
+  .filter-trigger:hover { background: rgba(255, 255, 255, 0.09); }
+  .filter-label {
+    flex: 1;
+    text-align: left;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .filter-count { flex: none; color: var(--faint); font-size: 11px; }
+  .chevron {
+    flex: none;
+    color: var(--muted);
+    font-size: 10px;
+    transition: transform 0.15s;
+  }
+  .filter-trigger[aria-expanded="true"] .chevron { transform: rotate(180deg); }
+
+  .filter-menu {
+    position: fixed;
+    z-index: 999;
+    max-height: min(320px, 52vh);
+    overflow-y: auto;
+    padding: 6px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    background: #0e1626;
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5);
+  }
+  .filter-menu::-webkit-scrollbar { width: 5px; }
+  .filter-menu::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.16);
+    border-radius: 99px;
+  }
+  .filter-option {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 8px;
+    border: none;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--text);
+    font-family: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+  .filter-option:hover,
+  .filter-option.active { background: rgba(255, 255, 255, 0.08); }
+  .filter-option .opt-main { flex: 1; min-width: 0; }
+  .filter-option .opt-alias {
+    display: block;
+    font-size: 12.5px;
+    font-weight: 600;
+  }
+  .filter-option .opt-alias em {
+    margin-left: 5px;
+    color: var(--faint);
+    font-style: normal;
+    font-weight: 400;
+    font-size: 10.5px;
+  }
+  .filter-option .opt-email {
+    display: block;
+    margin-top: 2px;
+    color: var(--faint);
+    font-size: 10.5px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .filter-option .opt-count { flex: none; color: var(--faint); font-size: 11px; }
+  .filter-option .check { flex: none; width: 14px; color: var(--accent); font-size: 11px; }
+  .filter-sep {
+    height: 1px;
+    margin: 6px 4px;
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .chip-avatar {
+    flex: none;
+    width: 18px;
+    height: 18px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: var(--acct-color, rgba(255, 255, 255, 0.22));
+    color: #0b1220;
+    font-size: 9px;
+    font-weight: 700;
+  }
+  .chip-avatar.all {
+    background: rgba(255, 255, 255, 0.22);
+    color: var(--text);
+  }
+
+  .card.detail-mode .account-filter,
+  .card.detail-mode .subtitle { display: none; }
+
+  /* ---------- 列表 ---------- */
+  .view {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .mail-list {
+    list-style: none;
+    margin: 0;
+    padding: 4px 10px 12px;
+    overflow-y: auto;
+    flex: 1;
+  }
+  .mail-list::-webkit-scrollbar,
+  .detail-scroll::-webkit-scrollbar { width: 5px; }
+  .mail-list::-webkit-scrollbar-thumb,
+  .detail-scroll::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.16);
+    border-radius: 99px;
+  }
+
+  .mail-row {
+    display: flex;
+    gap: 10px;
+    padding: 12px 10px;
+    border-radius: 14px;
+    cursor: pointer;
+    outline: none;
+    transition: background 0.15s;
+  }
+  .mail-row:hover,
+  .mail-row:focus-visible { background: rgba(255, 255, 255, 0.07); }
+  .mail-row + .mail-row { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05); }
+
+  .unread-dot {
+    flex: none;
+    width: 7px;
+    height: 7px;
+    margin-top: 7px;
+    border-radius: 50%;
+    background: transparent;
+  }
+  .mail-row.unread .unread-dot {
+    background: var(--accent);
+    box-shadow: 0 0 10px rgba(140, 200, 255, 0.6);
+  }
+
+  .mail-main { flex: 1; min-width: 0; }
+  .mail-top,
+  .mail-bottom { display: flex; align-items: center; gap: 7px; }
+  .mail-bottom { margin-top: 5px; }
+
+  .acct {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 1px 6px 1px 2px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--acct-color, var(--accent));
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+  }
+  .acct-avatar {
+    flex: none;
+    width: 14px;
+    height: 14px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: var(--acct-color, var(--accent));
+    color: #0b1220;
+    font-size: 8px;
+    font-weight: 700;
+  }
+  .sender {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 13.5px;
+    color: var(--muted);
+  }
+  .mail-row.unread .sender { color: var(--text); font-weight: 600; }
+  .time {
+    flex: none;
+    font-size: 11px;
+    color: var(--faint);
+    font-variant-numeric: tabular-nums;
+  }
+  .subject {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 12.5px;
+    color: var(--muted);
+  }
+  .mail-row.unread .subject { color: rgba(245, 248, 255, 0.90); }
+
+  .imp-badge {
+    flex: none;
+    padding: 2px 7px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 600;
+  }
+  .imp-badge.important {
+    color: var(--important);
+    background: rgba(255, 184, 107, 0.12);
+    border: 1px solid rgba(255, 184, 107, 0.25);
+  }
+  .imp-badge.critical {
+    color: var(--critical);
+    background: rgba(255, 111, 134, 0.12);
+    border: 1px solid rgba(255, 111, 134, 0.28);
+  }
+
+  .empty {
+    flex: 1;
+    display: grid;
+    place-items: center;
+    color: var(--faint);
+    font-size: 12.5px;
+  }
+
+  /* ---------- 详情 ---------- */
+  .detail-view { padding: 0 18px 12px; }
+
+  .detail-scroll {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding-right: 4px;
+  }
+  .detail-subject {
+    margin: 0 0 10px;
+    font-size: 18px;
+    line-height: 1.35;
+    font-weight: 650;
+  }
+  .detail-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 14px;
+    font-size: 11.5px;
+    color: var(--muted);
+  }
+  .detail-email {
+    color: var(--faint);
+    font-size: 10.5px;
+    word-break: break-all;
+  }
+
+  .importance {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 16px;
+    padding: 4px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .importance .label {
+    padding: 0 8px 0 6px;
+    font-size: 11px;
+    color: var(--faint);
+  }
+  .imp-btn {
+    flex: 1;
+    padding: 6px 8px;
+    border: none;
+    border-radius: 9px;
+    background: transparent;
+    color: var(--muted);
+    font-size: 12px;
+    font-family: inherit;
+    cursor: pointer;
+    transition: 0.15s;
+  }
+  .imp-btn:hover { color: var(--text); background: rgba(255, 255, 255, 0.06); }
+  .imp-btn.active[data-importance="normal"] {
+    background: rgba(255, 255, 255, 0.90);
+    color: #101827;
+    font-weight: 600;
+  }
+  .imp-btn.active[data-importance="important"] {
+    background: rgba(255, 184, 107, 0.22);
+    color: var(--important);
+    font-weight: 600;
+    box-shadow: inset 0 0 0 1px rgba(255, 184, 107, 0.35);
+  }
+  .imp-btn.active[data-importance="critical"] {
+    background: rgba(255, 111, 134, 0.22);
+    color: var(--critical);
+    font-weight: 600;
+    box-shadow: inset 0 0 0 1px rgba(255, 111, 134, 0.35);
+  }
+
+  .mail-body {
+    font-size: 13.5px;
+    line-height: 1.75;
+    color: rgba(245, 248, 255, 0.86);
+  }
+  .mail-body p { margin: 0 0 12px; }
+  .mail-body .code {
+    display: inline-block;
+    margin: 2px 0 14px;
+    padding: 10px 14px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.08);
+    font-size: 24px;
+    font-weight: 700;
+    letter-spacing: 4px;
+    color: #fff;
+  }
+
+  .inline-image {
+    position: relative;
+    margin: 16px 0;
+    border-radius: 14px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+  }
+  .inline-image img { display: block; width: 100%; height: auto; }
+  .img-copy {
+    position: absolute;
+    right: 10px;
+    bottom: 10px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    background: rgba(10, 15, 25, 0.55);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    color: #fff;
+    font-size: 11px;
+    font-family: inherit;
+    cursor: pointer;
+    opacity: 0;
+    transform: translateY(4px);
+    transition: 0.18s;
+  }
+  .inline-image:hover .img-copy,
+  .img-copy:focus-visible { opacity: 1; transform: none; }
+
+  .detail-actions {
+    flex: none;
+    padding: 10px 0 4px;
+    border-top: 1px solid rgba(255, 255, 255, 0.07);
+  }
+  .primary-btn {
+    width: 100%;
+    padding: 11px 16px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    background: rgba(255, 255, 255, 0.90);
+    color: #0f172a;
+    font-size: 13px;
+    font-weight: 650;
+    font-family: inherit;
+    cursor: pointer;
+    transition: 0.15s;
+  }
+  .primary-btn:hover { background: #fff; }
+
+  /* ---------- 账号管理 ---------- */
+  .account-sheet {
+    position: absolute;
+    inset: 0;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    padding: 18px;
+    border-radius: 22px;
+    background: linear-gradient(160deg, #111827 0%, #0f172a 100%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  }
+  .sheet-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 6px;
+  }
+  .sheet-head h2 { margin: 0; font-size: 18px; font-weight: 650; }
+  .sheet-note {
+    margin: 0 0 12px;
+    color: var(--muted);
+    font-size: 11.5px;
+    line-height: 1.55;
+  }
+  .account-list {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    list-style: none;
+    margin: 0;
+    padding: 0 2px;
+  }
+  .account-list::-webkit-scrollbar { width: 5px; }
+  .account-list::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.16);
+    border-radius: 99px;
+  }
+  .account-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  }
+  .account-item .avatar {
+    flex: none;
+    width: 30px;
+    height: 30px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: var(--acct-color);
+    color: #0b1220;
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .account-item .info { flex: 1; min-width: 0; }
+  .account-item .alias { font-size: 13px; font-weight: 600; }
+  .account-item .alias em {
+    margin-left: 4px;
+    color: var(--faint);
+    font-style: normal;
+    font-weight: 400;
+    font-size: 10.5px;
+  }
+  .account-item .email {
+    margin-top: 2px;
+    color: var(--faint);
+    font-size: 11px;
+    word-break: break-all;
+  }
+  .account-item .status {
+    flex: none;
+    color: #7ee2b8;
+    font-size: 10px;
+  }
+  .account-sheet .primary-btn { margin-top: 12px; }
+
+  /* ---------- 页脚与提示 ---------- */
+  .card-footer {
+    flex: none;
+    padding: 9px 18px 14px;
+    border-top: 1px solid rgba(255, 255, 255, 0.07);
+    background: rgba(10, 15, 25, 0.10);
+    font-size: 10.5px;
+    color: var(--faint);
+  }
+
+  .toast {
+    position: fixed;
+    left: 50%;
+    bottom: 6vh;
+    z-index: 50;
+    padding: 9px 16px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    background: rgba(15, 23, 42, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    color: #fff;
+    font-size: 12px;
+    opacity: 0;
+    transform: translate(-50%, 12px);
+    pointer-events: none;
+    transition: 0.2s;
+    white-space: nowrap;
+  }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  @media (max-width: 900px) {
+    .faux-window { display: none; }
+    .card { left: 4vw; top: 10vh; }
+    .desktop-hint { font-size: 11px; padding: 8px 12px; }
+  }
+  @media (max-height: 720px) {
+    .card { top: 6vh; height: 88vh; }
+  }
+</style>
+</head>
+<body>
+
+  <div class="wallpaper" aria-hidden="true"></div>
+  <div class="blob b1" aria-hidden="true"></div>
+  <div class="blob b2" aria-hidden="true"></div>
+  <div class="blob b3" aria-hidden="true"></div>
+
+  <div class="faux-window" aria-hidden="true">
+    <div class="faux-bar">
+      <div class="faux-dots"><span></span><span></span><span></span></div>
+      <div class="faux-title">工作窗口（示意）</div>
+    </div>
+    <div class="faux-line w80"></div>
+    <div class="faux-line w60"></div>
+    <div class="faux-line w40"></div>
+    <div class="faux-block"></div>
+    <div class="faux-line w60"></div>
+  </div>
+
+  <div class="desktop-hint" id="desktopHint">
+    原型：按 <kbd>H</kbd> 隐藏卡片 · 点击卡片后 <kbd>Alt</kbd> + 方向键移动
+  </div>
+
+  <main class="card" id="card" tabindex="0" aria-label="DeskMail 邮件卡片">
+    <header class="card-header">
+      <div class="title-row">
+        <div>
+          <h1 id="cardTitle">收件箱</h1>
+          <p class="subtitle" id="cardSubtitle">
+            <strong id="unreadCount">3</strong> 封未读 · <span id="accountCount">5</span> 个账号
+          </p>
+        </div>
+        <div class="header-actions">
+          <button class="icon-btn" id="settingsBtn" type="button" aria-label="账号管理" title="账号管理">⚙</button>
+          <button class="back-pill" id="backBtn" type="button">← 返回列表</button>
+        </div>
+      </div>
+      <div class="account-filter" id="accountFilter">
+        <button class="filter-trigger" id="filterTrigger" type="button" aria-haspopup="listbox" aria-expanded="false">
+          <span class="chip-avatar all" id="filterAvatar">全</span>
+          <span class="filter-label" id="filterLabel">全部账号</span>
+          <span class="filter-count" id="filterCount"></span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+      </div>
+    </header>
+
+    <section class="view list-view" id="listView">
+      <ul class="mail-list" id="mailList"></ul>
+      <div class="empty" id="emptyState" hidden>这个账号暂时没有邮件</div>
+    </section>
+
+    <section class="view detail-view" id="detailView" hidden>
+      <div class="detail-scroll" id="detailScroll">
+        <h2 class="detail-subject" id="detailSubject"></h2>
+        <div class="detail-meta">
+          <span id="detailSender"></span>
+          <span id="detailTime"></span>
+          <span class="acct" id="detailAccount"></span>
+          <span class="detail-email" id="detailEmail"></span>
+        </div>
+
+        <div class="importance" id="importance" role="group" aria-label="重要程度">
+          <span class="label">重要程度</span>
+          <button class="imp-btn" type="button" data-importance="normal">一般</button>
+          <button class="imp-btn" type="button" data-importance="important">重要</button>
+          <button class="imp-btn" type="button" data-importance="critical">严重</button>
+        </div>
+
+        <article class="mail-body" id="detailBody"></article>
+      </div>
+
+      <div class="detail-actions">
+        <button class="primary-btn" id="copyTextBtn" type="button">复制全文</button>
+      </div>
+    </section>
+
+    <section class="account-sheet" id="accountSheet" hidden>
+      <div class="sheet-head">
+        <h2>账号管理</h2>
+        <button class="icon-btn" id="closeSheetBtn" type="button" aria-label="关闭">✕</button>
+      </div>
+      <p class="sheet-note">
+        筛选栏只显示短备注名。完整邮箱地址较长，放在这里查看；添加账号时设置一个短备注名（如「工作」「小号」「订阅」）。
+      </p>
+      <ul class="account-list" id="accountList"></ul>
+      <button class="primary-btn" id="addAccountBtn" type="button">＋ 添加账号</button>
+    </section>
+
+    <footer class="card-footer" id="footerHint">
+      <kbd>H</kbd> 隐藏/显示 · 点击卡片后 <kbd>Alt</kbd> + 方向键移动
+    </footer>
+  </main>
+
+  <div class="filter-menu" id="filterMenu" role="listbox" aria-label="选择账号" hidden></div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ---------------- 数据 ---------------- */
+  /* 同一供应商可以有多个账号：筛选按账号，不按供应商 */
+  var ACCOUNTS = {
+    "qq-main":   { provider: "QQ",  email: "kuangxy@qq.com",               alias: "主号", color: "#5aa9ff" },
+    "qq-alt":    { provider: "QQ",  email: "deskmail_demo_account@qq.com", alias: "小号", color: "#8b9dff" },
+    "163-work":  { provider: "163", email: "kuangxingye.deskmail@163.com", alias: "工作", color: "#ff7a7a" },
+    "163-bill":  { provider: "163", email: "kxy.bill@163.com",             alias: "账单", color: "#ffa07a" },
+    "162-daily": { provider: "162", email: "daily@162.com",                alias: "订阅", color: "#4fd1a5" }
+  };
+
+  function makePoster() {
+    var svg = [
+      '<svg xmlns="http://www.w3.org/2000/svg" width="720" height="420" viewBox="0 0 720 420">',
+      '  <defs>',
+      '    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">',
+      '      <stop offset="0" stop-color="#1e3a8a"/>',
+      '      <stop offset="0.52" stop-color="#7c3aed"/>',
+      '      <stop offset="1" stop-color="#0ea5e9"/>',
+      '    </linearGradient>',
+      '    <radialGradient id="r" cx="0.8" cy="0.15" r="0.9">',
+      '      <stop offset="0" stop-color="#fbbf24" stop-opacity="0.85"/>',
+      '      <stop offset="1" stop-color="#fbbf24" stop-opacity="0"/>',
+      '    </radialGradient>',
+      '  </defs>',
+      '  <rect width="720" height="420" fill="url(#g)"/>',
+      '  <circle cx="620" cy="60" r="200" fill="url(#r)"/>',
+      '  <circle cx="110" cy="380" r="140" fill="#22d3ee" opacity="0.32"/>',
+      '  <circle cx="560" cy="330" r="90" fill="#f472b6" opacity="0.25"/>',
+      '  <text x="56" y="116" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="20" fill="#dbeafe" letter-spacing="5">PROJECT REVIEW</text>',
+      '  <text x="56" y="206" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="52" font-weight="700" fill="#ffffff">DeskMail v0.1</text>',
+      '  <text x="56" y="252" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="23" fill="#dbeafe">磨砂玻璃 · 多邮箱速览</text>',
+      '  <rect x="56" y="316" width="180" height="6" rx="3" fill="#ffffff" opacity="0.72"/>',
+      '  <rect x="56" y="338" width="280" height="6" rx="3" fill="#ffffff" opacity="0.32"/>',
+      '</svg>'
+    ].join("");
+    return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+  }
+
+  var POSTER = makePoster();
+
+  var mails = [
+    {
+      id: "m1",
+      account: "qq-main",
+      sender: "腾讯云",
+      subject: "您的验证码是 482913",
+      time: "10:32",
+      unread: true,
+      importance: "normal",
+      plain: "您正在登录腾讯云控制台，本次登录的验证码是：482913。验证码 5 分钟内有效。如非本人操作，请忽略本邮件。",
+      body:
+        "<p>您正在登录腾讯云控制台，本次登录的验证码是：</p>" +
+        '<p class="code">482913</p>' +
+        "<p>验证码 5 分钟内有效。如非本人操作，请忽略本邮件。</p>"
+    },
+    {
+      id: "m2",
+      account: "163-work",
+      sender: "网易邮箱团队",
+      subject: "账号安全提醒：检测到新设备登录",
+      time: "09:58",
+      unread: true,
+      importance: "critical",
+      plain: "我们检测到你的账号在一台新设备上登录。设备：Windows 11 · Chrome；地点：中国杭州；时间：今天 09:56。如果这是你本人操作，请忽略本邮件；否则请立即修改密码。",
+      body:
+        "<p>我们检测到你的账号在一台新设备上登录。</p>" +
+        "<p>设备：Windows 11 · Chrome<br>地点：中国 · 杭州<br>时间：今天 09:56</p>" +
+        "<p>如果这是你本人操作，请忽略本邮件；否则请立即修改密码。</p>"
+    },
+    {
+      id: "m3",
+      account: "162-daily",
+      sender: "林晚",
+      subject: "周四评审材料（含最新视觉稿）",
+      time: "昨天 18:20",
+      unread: true,
+      importance: "important",
+      plain: "最新的视觉稿放在下面了，周四评审用。重点看首页的玻璃卡片和列表层级，有问题明天上午前告诉我。另外，交互稿里“重要程度”那组按钮也一起确认一下。",
+      body:
+        "<p>Hi，</p>" +
+        "<p>最新的视觉稿放在下面了，周四评审用。重点看首页的玻璃卡片和列表层级，有问题明天上午前告诉我。</p>" +
+        '<figure class="inline-image">' +
+        '  <img src="' + POSTER + '" alt="评审视觉稿">' +
+        '  <button class="img-copy" type="button">复制图片</button>' +
+        "</figure>" +
+        "<p>另外，交互稿里“重要程度”那组按钮也一起确认一下。</p>"
+    },
+    {
+      id: "m4",
+      account: "qq-alt",
+      sender: "GitHub",
+      subject: "[deskmail] 新的 Issue 已分配给你",
+      time: "昨天 15:04",
+      unread: false,
+      importance: "normal",
+      plain: "Issue #12「桌面卡片置顶行为」已分配给你。请在本周内确认交互细节并回复。",
+      body:
+        "<p>Issue #12「桌面卡片置顶行为」已分配给你。</p>" +
+        "<p>请在本周内确认交互细节并回复。</p>"
+    },
+    {
+      id: "m5",
+      account: "163-bill",
+      sender: "招商银行信用卡",
+      subject: "9 月电子账单已出",
+      time: "昨天 09:12",
+      unread: false,
+      importance: "important",
+      plain: "您的 9 月信用卡电子账单已生成，本期应还 3,286.40 元，最后还款日 10 月 25 日。",
+      body:
+        "<p>您的 9 月信用卡电子账单已生成。</p>" +
+        "<p>本期应还：<strong>3,286.40 元</strong><br>最后还款日：10 月 25 日</p>" +
+        "<p>请按时还款，以免产生利息。</p>"
+    },
+    {
+      id: "m6",
+      account: "162-daily",
+      sender: "订阅日报",
+      subject: "今日精选：桌面效率工具 12 款",
+      time: "10-27",
+      unread: false,
+      importance: "normal",
+      plain: "今日精选了 12 款桌面效率工具，其中包括窗口管理、剪贴板增强和桌面挂件。点击阅读全文。",
+      body:
+        "<p>今日精选了 12 款桌面效率工具，其中包括窗口管理、剪贴板增强和桌面挂件。</p>" +
+        "<p>点击阅读全文。</p>"
+    },
+    {
+      id: "m7",
+      account: "qq-main",
+      sender: "张三",
+      subject: "项目周报（10 月第 4 周）",
+      time: "10-26",
+      unread: false,
+      importance: "normal",
+      plain: "本周完成登录流程联调，下周开始做邮件列表。风险是 IMAP 授权码在部分账号上过期，需要补一个重新授权入口。",
+      body:
+        "<p>本周完成登录流程联调，下周开始做邮件列表。</p>" +
+        "<p>风险：IMAP 授权码在部分账号上过期，需要补一个重新授权入口。</p>"
+    },
+    {
+      id: "m8",
+      account: "163-work",
+      sender: "携程旅行",
+      subject: "您的行程确认：杭州 → 北京",
+      time: "10-25",
+      unread: false,
+      importance: "normal",
+      plain: "您预订的 11 月 2 日杭州飞北京航班已确认，起飞时间 08:40，请提前 2 小时到达机场。",
+      body:
+        "<p>您预订的 11 月 2 日杭州飞北京航班已确认。</p>" +
+        "<p>起飞时间：08:40<br>航站楼：T4</p>" +
+        "<p>请提前 2 小时到达机场。</p>"
+    }
+  ];
+
+  /* ---------------- 元素 ---------------- */
+  var els = {
+    card: document.getElementById("card"),
+    cardTitle: document.getElementById("cardTitle"),
+    cardSubtitle: document.getElementById("cardSubtitle"),
+    unreadCount: document.getElementById("unreadCount"),
+    accountCount: document.getElementById("accountCount"),
+    settingsBtn: document.getElementById("settingsBtn"),
+    accountFilter: document.getElementById("accountFilter"),
+    filterTrigger: document.getElementById("filterTrigger"),
+    filterMenu: document.getElementById("filterMenu"),
+    filterAvatar: document.getElementById("filterAvatar"),
+    filterLabel: document.getElementById("filterLabel"),
+    filterCount: document.getElementById("filterCount"),
+    listView: document.getElementById("listView"),
+    mailList: document.getElementById("mailList"),
+    emptyState: document.getElementById("emptyState"),
+    detailView: document.getElementById("detailView"),
+    backBtn: document.getElementById("backBtn"),
+    detailScroll: document.getElementById("detailScroll"),
+    detailSubject: document.getElementById("detailSubject"),
+    detailSender: document.getElementById("detailSender"),
+    detailTime: document.getElementById("detailTime"),
+    detailAccount: document.getElementById("detailAccount"),
+    detailEmail: document.getElementById("detailEmail"),
+    detailBody: document.getElementById("detailBody"),
+    importance: document.getElementById("importance"),
+    copyTextBtn: document.getElementById("copyTextBtn"),
+    accountSheet: document.getElementById("accountSheet"),
+    accountList: document.getElementById("accountList"),
+    closeSheetBtn: document.getElementById("closeSheetBtn"),
+    addAccountBtn: document.getElementById("addAccountBtn"),
+    footerHint: document.getElementById("footerHint"),
+    desktopHint: document.getElementById("desktopHint"),
+    toast: document.getElementById("toast")
+  };
+
+  var state = {
+    account: "all",
+    current: null
+  };
+
+  /* ---------------- 工具 ---------------- */
+  function escapeHtml(value) {
+    return String(value)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  var toastTimer = null;
+  function showToast(message) {
+    els.toast.textContent = message;
+    els.toast.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () {
+      els.toast.classList.remove("show");
+    }, 1800);
+  }
+
+  function totalUnread() {
+    return mails.filter(function (m) { return m.unread; }).length;
+  }
+
+  function accountUnread(key) {
+    return mails.filter(function (m) { return m.account === key && m.unread; }).length;
+  }
+
+  /* ---------------- 渲染 ---------------- */
+  function accountOption(key) {
+    var account = ACCOUNTS[key];
+    var unread = accountUnread(key);
+    var active = state.account === key;
+    return (
+      '<button class="filter-option' + (active ? " active" : "") + '" type="button" role="option" ' +
+        'aria-selected="' + (active ? "true" : "false") + '" data-account="' + key + '" ' +
+        'title="' + escapeHtml(account.alias + " · " + account.email) + '">' +
+        '<span class="chip-avatar" style="--acct-color:' + account.color + '">' +
+          escapeHtml(account.alias.charAt(0)) +
+        "</span>" +
+        '<span class="opt-main">' +
+          '<span class="opt-alias">' + escapeHtml(account.alias) +
+            "<em>" + escapeHtml(account.provider) + "</em></span>" +
+          '<span class="opt-email">' + escapeHtml(account.email) + "</span>" +
+        "</span>" +
+        '<span class="opt-count">' + (unread > 0 ? unread + " 未读" : "") + "</span>" +
+        '<span class="check">' + (active ? "✓" : "") + "</span>" +
+      "</button>"
+    );
+  }
+
+  function renderFilterMenu() {
+    var allActive = state.account === "all";
+    var unread = totalUnread();
+    var html =
+      '<button class="filter-option' + (allActive ? " active" : "") + '" type="button" role="option" ' +
+        'aria-selected="' + (allActive ? "true" : "false") + '" data-account="all">' +
+        '<span class="chip-avatar all">全</span>' +
+        '<span class="opt-main"><span class="opt-alias">全部账号</span></span>' +
+        '<span class="opt-count">' + (unread > 0 ? unread + " 未读" : "") + "</span>" +
+        '<span class="check">' + (allActive ? "✓" : "") + "</span>" +
+      "</button>" +
+      '<div class="filter-sep"></div>';
+
+    html += Object.keys(ACCOUNTS).map(accountOption).join("");
+    els.filterMenu.innerHTML = html;
+  }
+
+  function renderFilter() {
+    var selected = state.account === "all" ? null : ACCOUNTS[state.account];
+    if (selected) {
+      els.filterAvatar.className = "chip-avatar";
+      els.filterAvatar.style.setProperty("--acct-color", selected.color);
+      els.filterAvatar.textContent = selected.alias.charAt(0);
+      els.filterLabel.textContent = selected.alias;
+      els.filterCount.textContent = accountUnread(state.account) > 0
+        ? accountUnread(state.account) + " 未读"
+        : "";
+    } else {
+      els.filterAvatar.className = "chip-avatar all";
+      els.filterAvatar.style.removeProperty("--acct-color");
+      els.filterAvatar.textContent = "全";
+      els.filterLabel.textContent = "全部账号";
+      els.filterCount.textContent = totalUnread() > 0 ? totalUnread() + " 未读" : "";
+    }
+    renderFilterMenu();
+  }
+
+  function mailRow(mail) {
+    var account = ACCOUNTS[mail.account];
+    var importance = "";
+    if (mail.importance === "important") {
+      importance = '<span class="imp-badge important">重要</span>';
+    } else if (mail.importance === "critical") {
+      importance = '<span class="imp-badge critical">严重</span>';
+    }
+
+    var rowClass = "mail-row" + (mail.unread ? " unread" : "");
+    return (
+      '<li class="' + rowClass + '" tabindex="0" role="button" data-id="' + mail.id + '" ' +
+      'aria-label="' + escapeHtml(mail.sender) + "：" + escapeHtml(mail.subject) + '">' +
+        '<span class="unread-dot" aria-hidden="true"></span>' +
+        '<div class="mail-main">' +
+          '<div class="mail-top">' +
+            '<span class="acct" style="--acct-color:' + account.color + '" ' +
+              'title="' + escapeHtml(account.alias + " · " + account.email) + '">' +
+              '<span class="acct-avatar">' + escapeHtml(account.alias.charAt(0)) + "</span>" +
+              escapeHtml(account.alias) +
+            "</span>" +
+            '<span class="sender">' + escapeHtml(mail.sender) + "</span>" +
+            '<span class="time">' + escapeHtml(mail.time) + "</span>" +
+          "</div>" +
+          '<div class="mail-bottom">' +
+            '<span class="subject">' + escapeHtml(mail.subject) + "</span>" +
+            importance +
+          "</div>" +
+        "</div>" +
+      "</li>"
+    );
+  }
+
+  function renderList() {
+    var visible = state.account === "all"
+      ? mails
+      : mails.filter(function (m) { return m.account === state.account; });
+
+    els.mailList.innerHTML = visible.map(mailRow).join("");
+    els.emptyState.hidden = visible.length > 0;
+    els.unreadCount.textContent = String(totalUnread());
+    renderFilter();
+  }
+
+  function updateImportanceUI() {
+    var buttons = els.importance.querySelectorAll(".imp-btn");
+    Array.prototype.forEach.call(buttons, function (btn) {
+      btn.classList.toggle(
+        "active",
+        !!state.current && btn.getAttribute("data-importance") === state.current.importance
+      );
+    });
+  }
+
+  function openMail(id) {
+    var mail = mails.filter(function (m) { return m.id === id; })[0];
+    if (!mail) return;
+
+    closeFilterMenu();
+    state.current = mail;
+
+    if (mail.unread) {
+      mail.unread = false;
+      showToast("已标记为已读");
+    }
+
+    var account = ACCOUNTS[mail.account];
+    els.cardTitle.textContent = "邮件详情";
+    els.cardSubtitle.hidden = true;
+    els.detailSubject.textContent = mail.subject;
+    els.detailSender.textContent = mail.sender;
+    els.detailTime.textContent = mail.time;
+    els.detailAccount.innerHTML =
+      '<span class="acct-avatar">' + escapeHtml(account.alias.charAt(0)) + "</span>" +
+      escapeHtml(account.alias);
+    els.detailAccount.style.setProperty("--acct-color", account.color);
+    els.detailAccount.title = account.alias + " · " + account.email;
+    els.detailEmail.textContent = account.email;
+    els.detailBody.innerHTML = mail.body;
+    updateImportanceUI();
+
+    els.listView.hidden = true;
+    els.detailView.hidden = false;
+    els.card.classList.add("detail-mode");
+    els.detailScroll.scrollTop = 0;
+
+    renderList();
+  }
+
+  function showList() {
+    state.current = null;
+    els.detailView.hidden = true;
+    els.listView.hidden = false;
+    els.card.classList.remove("detail-mode");
+    els.cardTitle.textContent = "收件箱";
+    els.cardSubtitle.hidden = false;
+    renderList();
+  }
+
+  function renderAccounts() {
+    els.accountList.innerHTML = Object.keys(ACCOUNTS).map(function (key) {
+      var account = ACCOUNTS[key];
+      return (
+        '<li class="account-item">' +
+          '<span class="avatar" style="--acct-color:' + account.color + '">' +
+            escapeHtml(account.alias.charAt(0)) +
+          "</span>" +
+          '<div class="info">' +
+            '<div class="alias">' + escapeHtml(account.alias) +
+              "<em>" + escapeHtml(account.provider) + "</em></div>" +
+            '<div class="email">' + escapeHtml(account.email) + "</div>" +
+          "</div>" +
+          '<span class="status">正常</span>' +
+        "</li>"
+      );
+    }).join("");
+  }
+
+  /* ---------------- 复制 ---------------- */
+  function fallbackCopyText(text) {
+    var area = document.createElement("textarea");
+    area.value = text;
+    area.setAttribute("readonly", "");
+    area.style.position = "fixed";
+    area.style.opacity = "0";
+    document.body.appendChild(area);
+    area.select();
+    var ok = false;
+    try {
+      ok = document.execCommand("copy");
+    } catch (err) {
+      ok = false;
+    }
+    area.remove();
+    return ok;
+  }
+
+  async function copyCurrentText() {
+    if (!state.current) return;
+    var text = state.current.plain;
+    try {
+      await navigator.clipboard.writeText(text);
+      showToast("已复制正文");
+    } catch (err) {
+      if (fallbackCopyText(text)) {
+        showToast("已复制正文");
+      } else {
+        showToast("当前环境不允许写入剪贴板");
+      }
+    }
+  }
+
+  async function copyImage(img) {
+    if (!navigator.clipboard || typeof window.ClipboardItem === "undefined") {
+      showToast("当前浏览器不支持复制图片");
+      return;
+    }
+
+    try {
+      var image = new Image();
+      var loaded = new Promise(function (resolve, reject) {
+        image.onload = function () { resolve(); };
+        image.onerror = function () { reject(new Error("image load failed")); };
+      });
+      image.src = img.src;
+      await loaded;
+
+      var canvas = document.createElement("canvas");
+      canvas.width = image.naturalWidth;
+      canvas.height = image.naturalHeight;
+      canvas.getContext("2d").drawImage(image, 0, 0);
+
+      var blob = await new Promise(function (resolve) {
+        canvas.toBlob(resolve, "image/png");
+      });
+      if (!blob) throw new Error("toBlob failed");
+
+      await navigator.clipboard.write([
+        new ClipboardItem({ "image/png": blob })
+      ]);
+      showToast("已复制图片");
+    } catch (err) {
+      showToast("复制图片失败，请用真实应用验证");
+    }
+  }
+
+  /* ---------------- 事件 ---------------- */
+  function positionFilterMenu() {
+    var rect = els.filterTrigger.getBoundingClientRect();
+    var width = Math.min(rect.width, window.innerWidth - 16);
+    var left = Math.min(Math.max(8, rect.left), window.innerWidth - width - 8);
+    els.filterMenu.style.width = width + "px";
+    els.filterMenu.style.left = left + "px";
+    els.filterMenu.style.top = (rect.bottom + 8) + "px";
+  }
+
+  function openFilterMenu() {
+    positionFilterMenu();
+    els.filterMenu.hidden = false;
+    els.filterTrigger.setAttribute("aria-expanded", "true");
+  }
+
+  function closeFilterMenu() {
+    els.filterMenu.hidden = true;
+    els.filterTrigger.setAttribute("aria-expanded", "false");
+  }
+
+  els.filterTrigger.addEventListener("click", function (event) {
+    event.stopPropagation();
+    if (els.filterMenu.hidden) openFilterMenu(); else closeFilterMenu();
+  });
+
+  els.filterMenu.addEventListener("click", function (event) {
+    var option = event.target.closest(".filter-option");
+    if (!option) return;
+    state.account = option.getAttribute("data-account");
+    closeFilterMenu();
+    renderList();
+  });
+
+  document.addEventListener("click", function (event) {
+    if (els.filterMenu.hidden) return;
+    if (els.filterMenu.contains(event.target) || els.filterTrigger.contains(event.target)) return;
+    closeFilterMenu();
+  });
+
+  document.addEventListener("keydown", function (event) {
+    if (event.key === "Escape") closeFilterMenu();
+  });
+
+  window.addEventListener("resize", function () {
+    if (!els.filterMenu.hidden) positionFilterMenu();
+  });
+
+  els.mailList.addEventListener("click", function (event) {
+    var row = event.target.closest(".mail-row");
+    if (row) openMail(row.getAttribute("data-id"));
+  });
+
+  els.mailList.addEventListener("keydown", function (event) {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    var row = event.target.closest(".mail-row");
+    if (!row) return;
+    event.preventDefault();
+    openMail(row.getAttribute("data-id"));
+  });
+
+  els.backBtn.addEventListener("click", showList);
+
+  els.importance.addEventListener("click", function (event) {
+    var btn = event.target.closest(".imp-btn");
+    if (!btn || !state.current) return;
+    state.current.importance = btn.getAttribute("data-importance");
+    updateImportanceUI();
+    renderList();
+    var labels = { normal: "一般", important: "重要", critical: "严重" };
+    showToast("已标记为" + labels[state.current.importance]);
+  });
+
+  els.copyTextBtn.addEventListener("click", copyCurrentText);
+
+  els.detailBody.addEventListener("click", function (event) {
+    var btn = event.target.closest(".img-copy");
+    if (!btn) return;
+    var figure = btn.closest(".inline-image");
+    var img = figure ? figure.querySelector("img") : null;
+    if (img) copyImage(img);
+  });
+
+  els.settingsBtn.addEventListener("click", function () {
+    closeFilterMenu();
+    renderAccounts();
+    els.accountSheet.hidden = false;
+  });
+
+  els.closeSheetBtn.addEventListener("click", function () {
+    els.accountSheet.hidden = true;
+  });
+
+  els.addAccountBtn.addEventListener("click", function () {
+    showToast("添加账号流程不在本次原型范围");
+  });
+
+  /* 卡片聚焦状态 */
+  els.card.addEventListener("mousedown", function () {
+    els.card.focus({ preventScroll: true });
+  });
+  els.card.addEventListener("focus", function () {
+    els.card.classList.add("focused");
+    els.footerHint.innerHTML =
+      "卡片已聚焦 · <kbd>Alt</kbd> + 方向键移动 · <kbd>H</kbd> 隐藏";
+  });
+  els.card.addEventListener("blur", function () {
+    els.card.classList.remove("focused");
+    els.footerHint.innerHTML =
+      '<kbd>H</kbd> 隐藏/显示 · 点击卡片后 <kbd>Alt</kbd> + 方向键移动';
+  });
+
+  /* H 键隐藏 / 显示（模拟全局快捷键） */
+  document.addEventListener("keydown", function (event) {
+    if (event.key.toLowerCase() !== "h") return;
+    if (event.altKey || event.ctrlKey || event.metaKey) return;
+
+    closeFilterMenu();
+    var hidden = els.card.classList.toggle("is-hidden");
+    if (hidden) {
+      els.desktopHint.innerHTML = '按 <kbd>H</kbd> 呼出邮件卡片';
+    } else {
+      els.desktopHint.innerHTML =
+        '原型：按 <kbd>H</kbd> 隐藏卡片 · 点击卡片后 <kbd>Alt</kbd> + 方向键移动';
+      els.card.focus({ preventScroll: true });
+    }
+  });
+
+  /* Alt + 方向键移动（仅卡片聚焦时生效） */
+  els.card.addEventListener("keydown", function (event) {
+    if (!event.altKey) return;
+    var keys = ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"];
+    if (keys.indexOf(event.key) === -1) return;
+
+    event.preventDefault();
+    var step = 16;
+    var rect = els.card.getBoundingClientRect();
+    var left = rect.left;
+    var top = rect.top;
+
+    if (event.key === "ArrowLeft") left -= step;
+    if (event.key === "ArrowRight") left += step;
+    if (event.key === "ArrowUp") top -= step;
+    if (event.key === "ArrowDown") top += step;
+
+    left = Math.max(8, Math.min(window.innerWidth - rect.width - 8, left));
+    top = Math.max(8, Math.min(window.innerHeight - rect.height - 8, top));
+
+    els.card.style.left = left + "px";
+    els.card.style.top = top + "px";
+    if (!els.filterMenu.hidden) positionFilterMenu();
+  });
+
+  /* ---------------- 启动 ---------------- */
+  els.accountCount.textContent = String(Object.keys(ACCOUNTS).length);
+  renderList();
+  els.card.focus({ preventScroll: true });
+
+  /* 原型辅助：直接用 hash 打开特定状态（用于评审截图） */
+  if (location.hash === "#detail") {
+    openMail("m3");
+  }
+  if (location.hash === "#accounts") {
+    openFilterMenu();
+  }
+  if (location.hash === "#manage") {
+    renderAccounts();
+    els.accountSheet.hidden = false;
+  }
+})();
+</script>
+</body>
+</html>
