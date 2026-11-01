@@ -19,6 +19,7 @@ contextBridge.exposeInMainWorld('deskmail', {
   onSyncUpdated: (callback: () => void) => {
     ipcRenderer.on('deskmail:sync:updated', () => callback());
   },
+  quit: () => ipcRenderer.invoke('deskmail:app:quit'),
   accounts: {
     add: (input: AddAccountInput) => ipcRenderer.invoke('deskmail:accounts:add', input),
     update: (id: string, patch: Partial<Pick<Account, 'alias' | 'color'>>) =>

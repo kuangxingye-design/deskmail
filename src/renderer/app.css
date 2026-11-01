@@ -9,21 +9,37 @@ body {
 
 body {
   padding: 0;
-  background:
-    radial-gradient(900px 600px at 18% 20%, #1d4ed8 0%, transparent 60%),
-    radial-gradient(800px 600px at 82% 72%, #7c3aed 0%, transparent 62%),
-    radial-gradient(700px 500px at 55% 10%, #0ea5e9 0%, transparent 55%),
-    linear-gradient(135deg, #0b1220 0%, #131a2b 48%, #0a0f1a 100%);
+  /* 桌面壳：卡片铺满窗口，圆角由 Windows DWM 负责；页面本身透明 */
+  background: transparent;
+}
+
+.card-header {
+  -webkit-app-region: drag;
+}
+
+.card-header button,
+.card-header .filter-trigger,
+.account-sheet,
+.card-footer,
+.mail-list,
+.detail-view,
+.filter-menu,
+.toast {
+  -webkit-app-region: no-drag;
 }
 
 body .card {
   position: fixed;
-  left: 10px;
-  top: 10px;
-  right: 10px;
-  bottom: 10px;
+  inset: 10px;
   width: auto !important;
   height: auto !important;
+  border-radius: 22px;
+  background: linear-gradient(
+    160deg,
+    rgba(12, 18, 30, 0.76),
+    rgba(12, 18, 30, 0.62)
+  );
+  border-color: rgba(255, 255, 255, 0.16);
 }
 
 .account-sheet {
@@ -139,5 +155,10 @@ body .card {
 .account-form input:disabled,
 .account-form select:disabled {
   opacity: 0.55;
+}
+
+.sheet-quit {
+  width: 100%;
+  margin-top: 12px;
 }
 

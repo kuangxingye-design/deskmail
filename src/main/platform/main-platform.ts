@@ -1,7 +1,8 @@
 /**
- * 主进程 PlatformServices 生产组合（#17）：
- * - 凭据：safeStorage/DPAPI 真实实现
- * - 窗口 / 热键 / 剪贴板：暂用桌面壳任务前的占位实现
+ * 主进程 PlatformServices 生产组合（#17/#21）：
+ * - window / globalShortcut：桌面壳真实实现
+ * - credentials：safeStorage/DPAPI
+ * - clipboard：暂用占位实现（剪贴板 PNG 任务替换）
  */
 import type {
   ClipboardPlatform,
@@ -10,16 +11,26 @@ import type {
   PlatformServices,
   WindowPlatform,
 } from '../../platform/types';
-import {
-  StubClipboardPlatform,
-  StubGlobalShortcutPlatform,
-  StubWindowPlatform,
-} from './main-stub';
+import { StubClipboardPlatform } from './main-stub';
 import { SafeStorageCredentialPlatform } from './safe-storage-credentials';
 
+export interface MainPlatformOptions {
+  window: WindowPlatform;
+  globalShortcut: GlobalShortcutPlatform;
+  clipboard?: ClipboardPlatform;
+  credentials?: CredentialPlatform;
+}
+
 export class MainPlatformServices implements PlatformServices {
-  readonly window: WindowPlatform = new StubWindowPlatform();
-  readonly globalShortcut: GlobalShortcutPlatform = new StubGlobalShortcutPlatform();
-  readonly clipboard: ClipboardPlatform = new StubClipboardPlatform();
-  readonly credentials: CredentialPlatform = new SafeStorageCredentialPlatform();
+  readonly window: WindowPlatform;
+  readonly globalShortcut: GlobalShortcutPlatform;
+  readonly clipboard: ClipboardPlatform;
+  readonly credentials: CredentialPlatform;
+
+  constructor(options: MainPlatformOptions) {
+    this.window = options.window;
+    this.globalShortcut = options.globalShortcut;
+    this.clipboard = options.clipboard ?? new StubClipboardPlatform();
+    this.credentials = options.credentials ?? new SafeStorageCredentialPlatform();
+  }
 }

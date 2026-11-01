@@ -19,6 +19,7 @@ export const IPC_CHANNELS = {
   accountsTestConnection: 'deskmail:accounts:test-connection',
   accountsReauthorize: 'deskmail:accounts:reauthorize',
   syncUpdated: 'deskmail:sync:updated',
+  appQuit: 'deskmail:app:quit',
   smoke: 'deskmail:smoke',
 } as const;
 
@@ -31,6 +32,7 @@ export interface DeskMailClient {
   accountsOverview(): Promise<AccountWithUnread[]>;
   /** main 在同步头阶段/完成后推送；renderer 据此刷新列表与未读数 */
   onSyncUpdated(callback: () => void): void;
+  quit(): Promise<void>;
   accounts: {
     add(input: AddAccountInput): Promise<Account>;
     update(
