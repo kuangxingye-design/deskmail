@@ -16,6 +16,7 @@ import { ImapClientImpl } from './imap/real';
 import { registerIpcHandlers } from './ipc';
 import { MainPlatformServices } from './platform/main-platform';
 import { SqliteMailStore } from './store/sqlite';
+import { SyncEngineImpl } from './sync/real';
 
 const SMOKE = process.argv.includes('--smoke');
 let store: SqliteMailStore | null = null;
@@ -64,12 +65,34 @@ app.whenReady().then(() => {
       () => new ImapClientImpl(),
     );
 
+  const parser = createMessageParser();
+  const realSync = SMOKE
+    ? undefined
+    : new SyncEngineImpl(
+      () => new ImapClientImpl(),
+      parser,
+      mailStore,
+      accounts,
+      mailStore,
+      platform.credentials,
+      () => {
+        for (const window of BrowserWindow.getAllWindows()) {
+          window.webContents.send(IPC_CHANNELS.syncUpdated);
+        }
+      },
+    );
+
   const desktop = compose(platform, {
     store: mailStore,
-    parser: createMessageParser(),
+    parser,
     accounts,
+    sync: realSync,
   });
   registerIpcHandlers(desktop);
+
+  if (realSync) {
+    realSync.startScheduler();
+  }
 
   ipcMain.on(IPC_CHANNELS.smoke, (_event, payload: SmokeReport) => {
     console.log('[deskmail] renderer smoke report:', JSON.stringify(payload));

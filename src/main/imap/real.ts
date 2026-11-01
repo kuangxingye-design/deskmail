@@ -84,33 +84,57 @@ export class ImapClientImpl implements ImapClient {
     try {
       const found = await client.search({ uid: `${uidFrom}:*` }, { uid: true });
       if (!Array.isArray(found)) return [];
-
-      const selected = selectNewestUids(found, uidFrom, limit);
-      if (selected.length === 0) return [];
-
-      const rows = await client.fetchAll(
-        selected.join(','),
-        { uid: true, envelope: true, internalDate: true, flags: true },
-        { uid: true },
-      );
-
-      return rows
-        .map((row) => {
-          const from = row.envelope?.from?.[0];
-          return {
-            imapUid: row.uid,
-            messageId: row.envelope?.messageId,
-            senderName: from?.name,
-            senderEmail: from?.address ?? '',
-            subject: row.envelope?.subject ?? '(无主题)',
-            receivedAt: toIsoString(row.internalDate),
-            isRead: row.flags?.has('\\Seen') ?? false,
-          };
-        })
-        .sort((a, b) => b.imapUid - a.imapUid);
+      return await this.fetchHeaderRows(selectNewestUids(found, uidFrom, limit));
     } catch (error) {
       throw classifyImapError(error);
     }
+  }
+
+  async fetchHeadersBefore(uidBefore: number, limit: number): Promise<HeaderBatch[]> {
+    if (uidBefore <= 1) return [];
+    const client = this.requireClient();
+    try {
+      const found = await client.search({ uid: `1:${uidBefore - 1}` }, { uid: true });
+      if (!Array.isArray(found)) return [];
+      return await this.fetchHeaderRows(selectNewestUids(found, 1, limit));
+    } catch (error) {
+      throw classifyImapError(error);
+    }
+  }
+
+  async listUids(): Promise<number[]> {
+    const client = this.requireClient();
+    try {
+      const found = await client.search({ all: true }, { uid: true });
+      return Array.isArray(found) ? found : [];
+    } catch (error) {
+      throw classifyImapError(error);
+    }
+  }
+
+  private async fetchHeaderRows(selected: number[]): Promise<HeaderBatch[]> {
+    if (selected.length === 0) return [];
+    const client = this.requireClient();
+    const rows = await client.fetchAll(
+      selected.join(','),
+      { uid: true, envelope: true, internalDate: true, flags: true },
+      { uid: true },
+    );
+
+    return rows
+      .map((row) => {
+        const from = row.envelope?.from?.[0];
+        return {
+          imapUid: row.uid,
+          messageId: row.envelope?.messageId,
+          senderName: from?.name,
+          senderEmail: from?.address ?? '',
+          subject: row.envelope?.subject ?? '(无主题)',
+          receivedAt: toIsoString(row.internalDate),
+          isRead: row.flags?.has('\\Seen') ?? false,
+        };
+      })
+      .sort((a, b) => b.imapUid - a.imapUid);
   }
 
   async fetchMessage(uid: number): Promise<RawMessage> {
