@@ -1,12 +1,10 @@
 /**
- * UI 骨架（#7）：三视图 + 视图状态机。
+ * UI（#7）+ 主进程 IPC 客户端（#15）。
  *
- * 数据只经 `inbox` 获取（ui → inbox → store），禁止直接 import mock 数据。
- * 真实 IMAP / SQLite / MIME 净化 / 桌面壳能力分别由其他任务接入。
+ * 数据只经 window.deskmail（preload → main → inbox），renderer 不再直接 compose / import mock。
+ * 真实 IMAP / SQLite / 内容解析在主进程；桌面壳能力由后续任务接入。
  */
-import { compose } from '../app/compose';
-import type { App } from '../app/compose';
-import { BrowserStubPlatformServices } from '../platform/browser-stub';
+import type { DeskMailClient } from '../ipc/types';
 import type { AccountWithUnread, MailDetail, MailSummary } from '../inbox/types';
 import type { Importance, Provider } from '../model/types';
 
@@ -69,7 +67,6 @@ class MailCardUi {
     sheetCloseBtn: byId<HTMLButtonElement>('sheetCloseBtn'),
     addAccountBtn: byId<HTMLButtonElement>('addAccountBtn'),
     accountForm: byId<HTMLFormElement>('accountForm'),
-    accountProvider: byId<HTMLSelectElement>('accountProvider'),
     accountEmail: byId<HTMLInputElement>('accountEmail'),
     accountAlias: byId<HTMLInputElement>('accountAlias'),
     accountAuthCode: byId<HTMLInputElement>('accountAuthCode'),
@@ -89,18 +86,18 @@ class MailCardUi {
   private currentDetail: MailDetail | null = null;
   private toastTimer: ReturnType<typeof setTimeout> | null = null;
 
-  constructor(private readonly app: App) {}
+  constructor(private readonly client: DeskMailClient) {}
 
-  init(): void {
-    this.refreshAccounts();
+  async init(): Promise<void> {
+    await this.refreshAccounts();
     this.bindEvents();
     this.renderShell();
-    this.renderList();
+    await this.renderList();
     this.renderFilterTrigger();
   }
 
-  private refreshAccounts(): void {
-    this.accounts = this.app.inbox.accountsOverview();
+  private async refreshAccounts(): Promise<void> {
+    this.accounts = await this.client.accountsOverview();
     this.accountMap = new Map(this.accounts.map((account) => [account.id, account]));
   }
 
@@ -121,8 +118,8 @@ class MailCardUi {
     this.elements.accountCount.textContent = String(this.accounts.length);
   }
 
-  private renderList(): void {
-    const items = this.app.inbox.list(this.state.filterAccountId);
+  private async renderList(): Promise<void> {
+    const items = await this.client.list(this.state.filterAccountId);
     this.elements.mailList.replaceChildren();
     for (const item of items) {
       this.elements.mailList.append(this.createMailRow(item));
@@ -139,11 +136,13 @@ class MailCardUi {
     row.tabIndex = 0;
     row.setAttribute('role', 'button');
     row.setAttribute('aria-label', `${item.senderName || item.senderEmail}：${item.subject}`);
-    row.addEventListener('click', () => this.openMail(item.id));
+    row.addEventListener('click', () => {
+      void this.openMail(item.id);
+    });
     row.addEventListener('keydown', (event) => {
       if (event.key !== 'Enter' && event.key !== ' ') return;
       event.preventDefault();
-      this.openMail(item.id);
+      void this.openMail(item.id);
     });
 
     const dot = document.createElement('span');
@@ -194,14 +193,14 @@ class MailCardUi {
     return row;
   }
 
-  private openMail(id: string): void {
-    const detail = this.app.inbox.detail(id);
+  private async openMail(id: string): Promise<void> {
+    const detail = await this.client.detail(id);
     if (!detail) return;
 
     this.currentDetail = detail;
     this.state.currentId = id;
     this.state.view = 'detail';
-    this.refreshAccounts();
+    await this.refreshAccounts();
     this.renderDetail(detail);
     this.renderShell();
     this.elements.detailScroll.scrollTop = 0;
@@ -230,7 +229,7 @@ class MailCardUi {
 
     this.elements.detailBody.replaceChildren();
     if (detail.bodyHtml) {
-      // #10 落定净化后才能进入真实邮件 HTML；骨架期 bodyHtml 为 undefined
+      // #10 已净化；CSP img-src 仅 self/data，远程图不会加载
       this.elements.detailBody.innerHTML = detail.bodyHtml;
     } else {
       this.elements.detailBody.textContent = detail.bodyText || '（无正文）';
@@ -246,22 +245,22 @@ class MailCardUi {
     });
   }
 
-  private setImportance(level: Importance): void {
+  private async setImportance(level: Importance): Promise<void> {
     if (!this.currentDetail) return;
-    this.app.inbox.setImportance(this.currentDetail.id, level);
+    await this.client.setImportance(this.currentDetail.id, level);
     this.currentDetail.importance = level;
     this.updateImportanceButtons();
-    this.refreshAccounts();
-    this.renderList();
+    await this.refreshAccounts();
+    await this.renderList();
     this.showToast(`已标记为${IMPORTANCE_LABELS[level]}`);
   }
 
-  private backToList(): void {
+  private async backToList(): Promise<void> {
     this.currentDetail = null;
     this.state.currentId = null;
     this.state.view = 'list';
     this.renderShell();
-    this.renderList();
+    await this.renderList();
   }
 
   private renderFilterTrigger(): void {
@@ -392,24 +391,25 @@ class MailCardUi {
     button.addEventListener('click', () => {
       this.state.filterAccountId = input.id;
       this.closeFilterMenu();
-      this.renderList();
+      void this.renderList();
     });
     return button;
   }
 
-  private openAccountSheet(): void {
+  private async openAccountSheet(): Promise<void> {
     this.closeFilterMenu();
     this.state.view = 'manage';
+    await this.refreshAccounts();
     this.renderAccountList();
     this.elements.accountForm.hidden = true;
     this.elements.accountFormError.hidden = true;
     this.renderShell();
   }
 
-  private closeAccountSheet(): void {
+  private async closeAccountSheet(): Promise<void> {
     this.state.view = 'list';
     this.renderShell();
-    this.renderList();
+    await this.renderList();
   }
 
   private renderAccountList(): void {
@@ -484,7 +484,7 @@ class MailCardUi {
     }
 
     try {
-      await this.app.platform.clipboard.writeText(text);
+      await navigator.clipboard.writeText(text);
       this.showToast('已复制正文');
     } catch {
       if (fallbackCopyText(text)) {
@@ -531,9 +531,15 @@ class MailCardUi {
       if (!this.elements.filterMenu.hidden) this.positionFilterMenu();
     });
 
-    this.elements.settingsBtn.addEventListener('click', () => this.openAccountSheet());
-    this.elements.backBtn.addEventListener('click', () => this.backToList());
-    this.elements.sheetCloseBtn.addEventListener('click', () => this.closeAccountSheet());
+    this.elements.settingsBtn.addEventListener('click', () => {
+      void this.openAccountSheet();
+    });
+    this.elements.backBtn.addEventListener('click', () => {
+      void this.backToList();
+    });
+    this.elements.sheetCloseBtn.addEventListener('click', () => {
+      void this.closeAccountSheet();
+    });
     this.elements.addAccountBtn.addEventListener('click', () => {
       this.toggleAccountForm(this.elements.accountForm.hasAttribute('hidden'));
     });
@@ -542,7 +548,7 @@ class MailCardUi {
     this.elements.importance.addEventListener('click', (event) => {
       const button = (event.target as HTMLElement).closest<HTMLButtonElement>('.imp-btn');
       const level = button?.dataset.importance as Importance | undefined;
-      if (level) this.setImportance(level);
+      if (level) void this.setImportance(level);
     });
     this.elements.copyTextBtn.addEventListener('click', () => {
       void this.copyText();
@@ -600,14 +606,18 @@ function fallbackCopyText(text: string): boolean {
   }
 }
 
-function runSmoke(app: App): void {
-  const summaries = app.inbox.list(null);
-  const unreadBefore = app.inbox.accountsOverview().reduce((sum, account) => sum + account.unread, 0);
+async function runSmoke(client: DeskMailClient): Promise<void> {
+  const summaries = await client.list(null);
+  const before = await client.accountsOverview();
+  const unreadBefore = before.reduce((sum, account) => sum + account.unread, 0);
+
   const firstUnread = summaries.find((item) => !item.isRead);
   if (firstUnread) {
-    app.inbox.detail(firstUnread.id);
+    await client.detail(firstUnread.id);
   }
-  const unreadAfter = app.inbox.accountsOverview().reduce((sum, account) => sum + account.unread, 0);
+
+  const after = await client.accountsOverview();
+  const unreadAfter = after.reduce((sum, account) => sum + account.unread, 0);
 
   const distinctCount = new Set(
     summaries.map((item) => `${item.senderEmail}|${item.subject}`),
@@ -625,14 +635,23 @@ function runSmoke(app: App): void {
 }
 
 async function boot(): Promise<void> {
-  const app = compose(new BrowserStubPlatformServices());
-  await app.sync.syncAll();
+  const client = window.deskmail;
+  if (!client) {
+    console.error('[deskmail] preload API missing');
+    return;
+  }
 
-  const ui = new MailCardUi(app);
-  ui.init();
+  try {
+    await client.syncAll();
+  } catch (error) {
+    console.error('[deskmail] sync failed:', error);
+  }
+
+  const ui = new MailCardUi(client);
+  await ui.init();
 
   if (location.hash === '#smoke') {
-    runSmoke(app);
+    await runSmoke(client);
   }
 }
 

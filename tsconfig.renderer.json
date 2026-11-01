@@ -9,6 +9,7 @@
   },
   "include": [
     "src/renderer/**/*",
+    "src/ipc/**/*",
     "src/app/**/*",
     "src/model/**/*",
     "src/imap/**/*",
