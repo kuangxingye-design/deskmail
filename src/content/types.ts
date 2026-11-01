@@ -11,9 +11,9 @@ export interface ParsedMessage {
   inlineImages: RawInlineImage[];
 }
 
-/** 原始邮件 → 结构化内容 */
+/** 原始邮件 → 结构化内容（mailparser 等真实解析器需要异步） */
 export interface MessageParser {
-  parse(raw: RawMessage): ParsedMessage;
+  parse(raw: RawMessage): Promise<ParsedMessage>;
 }
 
 /**

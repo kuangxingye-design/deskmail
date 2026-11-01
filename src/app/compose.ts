@@ -4,6 +4,7 @@
  */
 import { FixtureImapClient } from '../imap/fixture';
 import { StubMessageParser } from '../content/stub';
+import type { MessageParser } from '../content/types';
 import { InMemoryMailStore } from '../store/memory';
 import { StubSyncEngine } from '../sync/stub';
 import { StubAccountService } from '../accounts/stub';
@@ -22,18 +23,23 @@ export interface App {
   platform: PlatformServices;
 }
 
+export interface ComposeOptions {
+  /** 默认透传桩；主进程/测试可注入真实 mailparser 解析器（#10） */
+  parser?: MessageParser;
+}
+
 /**
  * platform 参数：骨架期传 BrowserStubPlatformServices；
  * 真实平台实现（#9/#10/#11）落地后在此替换，核心域代码不变。
- * TextExtractor 待 #7 随真实 MIME 解析接入 parser，骨架期不装配。
+ * parser 参数：renderer 默认透传桩；真实解析器位于 src/main/content（Node-only，#10）。
  */
-export function compose(platform: PlatformServices): App {
+export function compose(platform: PlatformServices, options: ComposeOptions = {}): App {
   const store = new InMemoryMailStore();
   // 每账号独立 IMAP 会话：mock 邮件按账号隔离。
   // 真实实现（#8）落地后，工厂改为按账号凭据建真实连接，签名不变。
   const createImap = (accountId: string): ImapClient =>
     new FixtureImapClient(MOCK_RAW_MESSAGES_BY_ACCOUNT[accountId] ?? []);
-  const parser = new StubMessageParser();
+  const parser = options.parser ?? new StubMessageParser();
 
   const sync = new StubSyncEngine(createImap, parser, store, MOCK_ACCOUNTS);
   const accounts = new StubAccountService(MOCK_ACCOUNTS);
