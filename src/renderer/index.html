@@ -65,7 +65,7 @@
         <button class="icon-btn" id="sheetCloseBtn" type="button" aria-label="关闭">✕</button>
       </div>
       <p class="sheet-note">
-        筛选栏只显示短备注名；完整邮箱地址在这里查看。添加账号的提交逻辑由账号管理任务接入。
+        筛选栏只显示短备注名；完整邮箱地址在这里查看。添加/重授权会先做真实连接测试，授权码通过 safeStorage 加密保存。
       </p>
       <ul class="account-list" id="accountList"></ul>
       <button class="primary-btn" id="addAccountBtn" type="button">＋ 添加账号</button>
@@ -88,7 +88,7 @@
           <input id="accountAuthCode" type="password" autocomplete="off" placeholder="仅用于本地连接测试">
         </label>
         <div class="form-actions">
-          <button class="primary-btn" id="accountSubmit" type="submit">添加（占位）</button>
+          <button class="primary-btn" id="accountSubmit" type="submit">添加账号</button>
           <button class="ghost-btn" id="accountCancel" type="button">取消</button>
         </div>
         <p class="form-error" id="accountFormError" hidden></p>

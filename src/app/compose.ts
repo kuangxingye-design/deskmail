@@ -29,6 +29,8 @@ export interface ComposeOptions {
   parser?: MessageParser;
   /** 默认内存 store；主进程/测试可注入 SQLite MailStore（#9） */
   store?: MailStore;
+  /** 默认 mock 账号；主进程注入 SQLite + safeStorage 的真实 AccountService（#17） */
+  accounts?: AccountService;
 }
 
 /**
@@ -44,8 +46,8 @@ export function compose(platform: PlatformServices, options: ComposeOptions = {}
     new FixtureImapClient(MOCK_RAW_MESSAGES_BY_ACCOUNT[accountId] ?? []);
   const parser = options.parser ?? new StubMessageParser();
 
-  const sync = new StubSyncEngine(createImap, parser, store, MOCK_ACCOUNTS);
-  const accounts = new StubAccountService(MOCK_ACCOUNTS);
+  const accounts = options.accounts ?? new StubAccountService(MOCK_ACCOUNTS);
+  const sync = new StubSyncEngine(createImap, parser, store, accounts);
   const inbox = new InboxServiceImpl(store, accounts);
 
   return { inbox, sync, accounts, platform };

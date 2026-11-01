@@ -3,8 +3,9 @@
  */
 import { ipcMain } from 'electron';
 import type { App } from '../app/compose';
+import type { AddAccountInput } from '../accounts/types';
 import type { ListOptions } from '../inbox/types';
-import type { Importance } from '../model/types';
+import type { Account, Importance } from '../model/types';
 import { IPC_CHANNELS } from '../ipc/types';
 
 export function registerIpcHandlers(desktop: App): void {
@@ -31,5 +32,31 @@ export function registerIpcHandlers(desktop: App): void {
   ipcMain.handle(
     IPC_CHANNELS.accountsOverview,
     () => desktop.inbox.accountsOverview(),
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.accountsAdd,
+    (_event, input: AddAccountInput) => desktop.accounts.add(input),
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.accountsUpdate,
+    (_event, id: string, patch: Partial<Pick<Account, 'alias' | 'color'>>) =>
+      desktop.accounts.update(id, patch),
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.accountsRemove,
+    (_event, id: string) => desktop.accounts.remove(id),
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.accountsTestConnection,
+    (_event, input: AddAccountInput) => desktop.accounts.testConnection(input),
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.accountsReauthorize,
+    (_event, id: string, authCode: string) => desktop.accounts.reauthorize(id, authCode),
   );
 }

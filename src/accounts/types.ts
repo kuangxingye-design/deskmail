@@ -21,11 +21,12 @@ export interface ConnectionTestResult {
 export interface AccountService {
   list(): Account[];
   /** 重复邮箱（规范化小写）阻止添加（Proposal 验收：同一邮箱重复添加阻止） */
-  add(input: AddAccountInput): Account;
-  update(id: string, patch: Partial<Pick<Account, 'alias' | 'color'>>): Account;
-  remove(id: string): void;
+  add(input: AddAccountInput): Promise<Account>;
+  update(id: string, patch: Partial<Pick<Account, 'alias' | 'color'>>): Promise<Account>;
+  /** 删除账号、凭据与该账号的消息/内嵌图片 */
+  remove(id: string): Promise<void>;
   testConnection(input: AddAccountInput): Promise<ConnectionTestResult>;
   reauthorize(id: string, newAuthCode: string): Promise<ConnectionTestResult>;
-  /** 备注名为空时的默认名（邮箱前缀 6-8 字符 + 序号；#9 落地完整规则） */
+  /** 备注名为空时的默认名（邮箱前缀 6-8 字符 + 序号） */
   defaultAlias(email: string): string;
 }
