@@ -20,8 +20,15 @@ export const IPC_CHANNELS = {
   accountsReauthorize: 'deskmail:accounts:reauthorize',
   syncUpdated: 'deskmail:sync:updated',
   appQuit: 'deskmail:app:quit',
+  copyImage: 'deskmail:clipboard:copy-image',
+  loadRemoteImages: 'deskmail:images:load-remote',
   smoke: 'deskmail:smoke',
 } as const;
+
+export interface RemoteImageResult {
+  url: string;
+  dataUrl: string;
+}
 
 /** renderer 侧使用的客户端接口；preload 通过 contextBridge 提供同名方法 */
 export interface DeskMailClient {
@@ -33,6 +40,10 @@ export interface DeskMailClient {
   /** main 在同步头阶段/完成后推送；renderer 据此刷新列表与未读数 */
   onSyncUpdated(callback: () => void): void;
   quit(): Promise<void>;
+  /** 把邮件内嵌图片（data URL）复制为图片到系统剪贴板 */
+  copyImage(dataUrl: string): Promise<void>;
+  /** 按用户点击，拉取远程图片并返回 data URL；默认不调用 */
+  loadRemoteImages(urls: string[]): Promise<RemoteImageResult[]>;
   accounts: {
     add(input: AddAccountInput): Promise<Account>;
     update(

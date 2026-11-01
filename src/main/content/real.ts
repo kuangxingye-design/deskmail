@@ -38,10 +38,23 @@ export class SanitizeHtmlSanitizer implements HtmlSanitizer {
       allowedTags: ALLOWED_TAGS,
       allowedAttributes: {
         a: ['title'],
-        img: ['src', 'alt', 'width', 'height'],
+        img: ['src', 'alt', 'width', 'height', 'data-remote-src'],
         td: ['colspan', 'rowspan'],
         th: ['colspan', 'rowspan'],
         '*': ['style'],
+      },
+      transformTags: {
+        // 远程图片不保留可加载的 src，只留 data-remote-src，由用户点击后再由主进程拉取
+        img: (tagName, attribs) => {
+          const src = attribs.src;
+          if (src && /^https?:\/\//i.test(src)) {
+            const next = { ...attribs };
+            delete next.src;
+            next['data-remote-src'] = src;
+            return { tagName, attribs: next };
+          }
+          return { tagName, attribs };
+        },
       },
       allowedSchemes: ['http', 'https', 'mailto'],
       // 远程图片一律不加载；只允许 mailparser 生成的 data: 内嵌图

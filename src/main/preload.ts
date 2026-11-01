@@ -20,6 +20,10 @@ contextBridge.exposeInMainWorld('deskmail', {
     ipcRenderer.on('deskmail:sync:updated', () => callback());
   },
   quit: () => ipcRenderer.invoke('deskmail:app:quit'),
+  copyImage: (dataUrl: string) =>
+    ipcRenderer.invoke('deskmail:clipboard:copy-image', dataUrl),
+  loadRemoteImages: (urls: string[]) =>
+    ipcRenderer.invoke('deskmail:images:load-remote', urls),
   accounts: {
     add: (input: AddAccountInput) => ipcRenderer.invoke('deskmail:accounts:add', input),
     update: (id: string, patch: Partial<Pick<Account, 'alias' | 'color'>>) =>
