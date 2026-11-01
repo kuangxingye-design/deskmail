@@ -36,7 +36,7 @@ export class StubSyncEngine implements SyncEngine {
 
       for (const header of headers) {
         const raw = await imap.fetchMessage(header.imapUid);
-        const parsed = this.parser.parse(raw);
+        const parsed = await this.parser.parse(raw);
         const message: Message = {
           id: `${accountId}:${header.imapUid}`,
           accountId,

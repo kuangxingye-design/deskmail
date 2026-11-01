@@ -6,7 +6,7 @@ import type { RawMessage } from '../imap/types';
 import type { HtmlSanitizer, MessageParser, ParsedMessage, TextExtractor } from './types';
 
 export class StubMessageParser implements MessageParser {
-  parse(raw: RawMessage): ParsedMessage {
+  async parse(raw: RawMessage): Promise<ParsedMessage> {
     const source = new TextDecoder('utf-8', { fatal: false }).decode(raw.raw);
     const separator = source.indexOf('\r\n\r\n');
     const body = separator >= 0 ? source.slice(separator + 4) : source;

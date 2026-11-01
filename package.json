@@ -8,7 +8,7 @@
     "build": "tsc -p tsconfig.main.json && node scripts/build-renderer.mjs",
     "typecheck": "tsc -p tsconfig.main.json --noEmit && tsc -p tsconfig.renderer.json",
     "lint": "eslint .",
-    "test": "tsx --test tests/imap.test.ts",
+    "test": "tsx --test tests/imap.test.ts tests/content.test.ts",
     "start": "npm run build && electron .",
     "smoke": "npm run build && electron . --smoke",
     "imap:test": "npm run build && node dist/main/imap/test-cli.js"
@@ -17,6 +17,7 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/node": "^26.6.6",
+    "@types/sanitize-html": "^2.16.2",
     "electron": "^45.2.1",
     "esbuild": "^0.28.2",
     "eslint": "^10.14.0",
@@ -25,6 +26,8 @@
     "typescript-eslint": "^8.72.1"
   },
   "dependencies": {
-    "imapflow": "^2.10.0"
+    "imapflow": "^2.10.0",
+    "mailparser": "^3.14.1",
+    "sanitize-html": "^2.18.1"
   }
 }
