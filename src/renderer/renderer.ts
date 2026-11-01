@@ -74,6 +74,7 @@ class MailCardUi {
     accountSubmit: byId<HTMLButtonElement>('accountSubmit'),
     accountCancel: byId<HTMLButtonElement>('accountCancel'),
     accountFormError: byId<HTMLElement>('accountFormError'),
+    quitAppBtn: byId<HTMLButtonElement>('quitAppBtn'),
     toast: byId<HTMLElement>('toast'),
   };
 
@@ -704,6 +705,9 @@ class MailCardUi {
     });
     this.elements.sheetCloseBtn.addEventListener('click', () => {
       void this.closeAccountSheet();
+    });
+    this.elements.quitAppBtn.addEventListener('click', () => {
+      void this.client.quit();
     });
     this.elements.addAccountBtn.addEventListener('click', () => {
       if (this.elements.accountForm.hidden || this.accountMode === 'reauth') {
