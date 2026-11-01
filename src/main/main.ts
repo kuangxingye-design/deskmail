@@ -14,6 +14,7 @@ import { AccountServiceImpl } from './accounts/real';
 import { createMessageParser } from './content/real';
 import { ImapClientImpl } from './imap/real';
 import { registerIpcHandlers } from './ipc';
+import { ElectronClipboardPlatform } from './platform/electron-clipboard';
 import { ElectronGlobalShortcutPlatform } from './platform/electron-global-shortcut';
 import { ElectronWindowPlatform } from './platform/electron-window-platform';
 import { MainPlatformServices } from './platform/main-platform';
@@ -134,6 +135,7 @@ app.whenReady().then(() => {
   const platform = new MainPlatformServices({
     window: new ElectronWindowPlatform(win),
     globalShortcut: new ElectronGlobalShortcutPlatform(),
+    clipboard: new ElectronClipboardPlatform(),
   });
 
   const dbPath = path.join(userData, 'deskmail.sqlite');

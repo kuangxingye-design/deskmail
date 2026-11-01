@@ -54,7 +54,12 @@ test('解析 multipart/alternative + 净化攻击载荷 + cid 内嵌图', async 
   assert.doesNotMatch(result.bodyHtml ?? '', /alert\(/i);
   assert.doesNotMatch(result.bodyHtml ?? '', /onerror/i);
   assert.doesNotMatch(result.bodyHtml ?? '', /<iframe/i);
-  assert.doesNotMatch(result.bodyHtml ?? '', /https:\/\/evil\.example/i);
+  // 远程图片不可直接加载；URL 只保留在 data-remote-src，等待用户手动加载
+  assert.doesNotMatch(result.bodyHtml ?? '', /<img[^>]*\ssrc="https?:\/\//i);
+  assert.match(
+    result.bodyHtml ?? '',
+    /data-remote-src="https:\/\/evil\.example\/pixel\.png"/,
+  );
   assert.doesNotMatch(result.bodyHtml ?? '', /url\(/i);
   assert.match(result.bodyHtml ?? '', /data:image\/png;base64,/);
 
@@ -110,7 +115,11 @@ test('远程图片被移除，不产生内嵌图', async () => {
   ].join('\r\n');
 
   const result = await parser.parse(raw(source));
-  assert.doesNotMatch(result.bodyHtml ?? '', /https:\/\/tracker\.example/i);
+  assert.doesNotMatch(result.bodyHtml ?? '', /<img[^>]*\ssrc="https?:\/\//i);
+  assert.match(
+    result.bodyHtml ?? '',
+    /data-remote-src="https:\/\/tracker\.example\/pixel\.png"/,
+  );
   assert.equal(result.inlineImages.length, 0);
 });
 

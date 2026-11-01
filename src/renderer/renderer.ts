@@ -61,6 +61,7 @@ class MailCardUi {
     detailEmail: byId<HTMLElement>('detailEmail'),
     detailBody: byId<HTMLElement>('detailBody'),
     importance: byId<HTMLElement>('importance'),
+    loadImagesBtn: byId<HTMLButtonElement>('loadImagesBtn'),
     copyTextBtn: byId<HTMLButtonElement>('copyTextBtn'),
     accountSheet: byId<HTMLElement>('accountSheet'),
     accountList: byId<HTMLUListElement>('accountList'),
@@ -267,8 +268,82 @@ class MailCardUi {
     } else {
       this.elements.detailBody.textContent = detail.bodyText || '（无正文）';
     }
+    this.wrapInlineImages();
+    this.updateRemoteImagesButton();
 
     this.updateImportanceButtons();
+  }
+
+  private wrapInlineImages(): void {
+    const images = Array.from(
+      this.elements.detailBody.querySelectorAll<HTMLImageElement>('img'),
+    ).filter((img) => img.src.startsWith('data:image/'));
+
+    for (const img of images) {
+      if (img.closest('.inline-image')) continue;
+
+      const figure = document.createElement('figure');
+      figure.className = 'inline-image';
+      img.replaceWith(figure);
+      figure.append(img);
+
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'img-copy';
+      button.textContent = '复制图片';
+      button.addEventListener('click', () => {
+        void this.copyImage(img.src);
+      });
+      figure.append(button);
+    }
+  }
+
+  private async copyImage(dataUrl: string): Promise<void> {
+    try {
+      await this.client.copyImage(dataUrl);
+      this.showToast('已复制图片');
+    } catch (error) {
+      this.showToast(errorMessage(error));
+    }
+  }
+
+  private updateRemoteImagesButton(): void {
+    const count = this.elements.detailBody.querySelectorAll('img[data-remote-src]').length;
+    this.elements.loadImagesBtn.hidden = count === 0;
+    this.elements.loadImagesBtn.textContent = `显示图片（${count}）`;
+    this.elements.loadImagesBtn.disabled = false;
+  }
+
+  private async loadRemoteImages(): Promise<void> {
+    const images = Array.from(
+      this.elements.detailBody.querySelectorAll<HTMLImageElement>('img[data-remote-src]'),
+    );
+    const urls = images
+      .map((img) => img.dataset.remoteSrc)
+      .filter((url): url is string => typeof url === 'string' && url.length > 0);
+    if (urls.length === 0) return;
+
+    this.elements.loadImagesBtn.disabled = true;
+    this.elements.loadImagesBtn.textContent = '加载图片…';
+    try {
+      const results = await this.client.loadRemoteImages(urls);
+      const map = new Map(results.map((result) => [result.url, result.dataUrl]));
+      for (const img of images) {
+        const remote = img.dataset.remoteSrc;
+        const dataUrl = remote ? map.get(remote) : undefined;
+        if (!dataUrl) continue;
+        img.src = dataUrl;
+        img.removeAttribute('data-remote-src');
+      }
+      this.wrapInlineImages();
+      this.updateRemoteImagesButton();
+      this.showToast(results.length > 0 ? '图片已加载' : '图片加载失败');
+    } catch (error) {
+      this.showToast(errorMessage(error));
+    } finally {
+      this.elements.loadImagesBtn.disabled = false;
+      this.updateRemoteImagesButton();
+    }
   }
 
   private updateImportanceButtons(): void {
@@ -727,6 +802,9 @@ class MailCardUi {
     });
     this.elements.copyTextBtn.addEventListener('click', () => {
       void this.copyText();
+    });
+    this.elements.loadImagesBtn.addEventListener('click', () => {
+      void this.loadRemoteImages();
     });
   }
 }
