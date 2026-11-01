@@ -8,8 +8,9 @@
 import { DatabaseSync } from 'node:sqlite';
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
-import type { Importance, InlineImage, Message, SyncState } from '../../model/types';
+import type { Account, AccountStatus, Importance, InlineImage, Message, Provider, SyncState } from '../../model/types';
 import type { MailStore, MailStoreQuery } from '../../store/types';
+import type { AccountRepository } from '../../accounts/repository';
 
 const SCHEMA_VERSION = 1;
 
@@ -104,9 +105,22 @@ interface SyncStateRow {
   last_error: string | null;
 }
 
+interface AccountRow {
+  id: string;
+  provider: string;
+  email: string;
+  email_normalized: string;
+  alias: string;
+  color: string;
+  status: string;
+  created_at: string;
+  last_sync_at: string | null;
+  last_sync_error: string | null;
+}
+
 type BindValue = string | number | null | Uint8Array;
 
-export class SqliteMailStore implements MailStore {
+export class SqliteMailStore implements MailStore, AccountRepository {
   private readonly db: DatabaseSync;
 
   constructor(filename: string) {
@@ -301,6 +315,91 @@ export class SqliteMailStore implements MailStore {
     });
   }
 
+  listAccounts(): Account[] {
+    const rows = this.db
+      .prepare('SELECT * FROM accounts ORDER BY created_at ASC, id ASC')
+      .all() as unknown as AccountRow[];
+    return rows.map(rowToAccount);
+  }
+
+  getAccount(id: string): Account | undefined {
+    const row = this.db.prepare('SELECT * FROM accounts WHERE id = ?').get(id) as
+      | AccountRow
+      | undefined;
+    return row ? rowToAccount(row) : undefined;
+  }
+
+  findAccountByEmail(emailNormalized: string): Account | undefined {
+    const row = this.db
+      .prepare('SELECT * FROM accounts WHERE email_normalized = ?')
+      .get(emailNormalized) as AccountRow | undefined;
+    return row ? rowToAccount(row) : undefined;
+  }
+
+  insertAccount(account: Account, emailNormalized: string): void {
+    this.db.prepare(`
+      INSERT INTO accounts (
+        id, provider, email, email_normalized, alias, color, status,
+        created_at, last_sync_at, last_sync_error
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      account.id,
+      account.provider,
+      account.email,
+      emailNormalized,
+      account.alias,
+      account.color,
+      account.status,
+      account.createdAt,
+      account.lastSyncAt ?? null,
+      account.lastSyncError ?? null,
+    );
+  }
+
+  updateAccount(
+    id: string,
+    patch: Partial<Pick<Account, 'alias' | 'color' | 'status' | 'lastSyncAt' | 'lastSyncError'>>,
+  ): Account {
+    const sets: string[] = [];
+    const params: BindValue[] = [];
+
+    if (patch.alias !== undefined) {
+      sets.push('alias = ?');
+      params.push(patch.alias);
+    }
+    if (patch.color !== undefined) {
+      sets.push('color = ?');
+      params.push(patch.color);
+    }
+    if (patch.status !== undefined) {
+      sets.push('status = ?');
+      params.push(patch.status);
+    }
+    if ('lastSyncAt' in patch) {
+      sets.push('last_sync_at = ?');
+      params.push(patch.lastSyncAt ?? null);
+    }
+    if ('lastSyncError' in patch) {
+      sets.push('last_sync_error = ?');
+      params.push(patch.lastSyncError ?? null);
+    }
+
+    if (sets.length > 0) {
+      params.push(id);
+      this.db.prepare(`UPDATE accounts SET ${sets.join(', ')} WHERE id = ?`).run(...params);
+    }
+
+    const account = this.getAccount(id);
+    if (!account) {
+      throw new Error(`account not found: ${id}`);
+    }
+    return account;
+  }
+
+  removeAccount(id: string): void {
+    this.db.prepare('DELETE FROM accounts WHERE id = ?').run(id);
+  }
+
   private migrate(): void {
     const row = this.db.prepare('PRAGMA user_version').get() as
       | { user_version: number }
@@ -351,4 +450,18 @@ function rowToMessage(row: MessageRow): Message {
 function normalizeReceivedAt(value: string): string {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? value : date.toISOString();
+}
+
+function rowToAccount(row: AccountRow): Account {
+  return {
+    id: row.id,
+    provider: row.provider as Provider,
+    email: row.email,
+    alias: row.alias,
+    color: row.color,
+    status: row.status as AccountStatus,
+    createdAt: row.created_at,
+    lastSyncAt: row.last_sync_at ?? undefined,
+    lastSyncError: row.last_sync_error ?? undefined,
+  };
 }

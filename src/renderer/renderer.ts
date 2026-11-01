@@ -67,9 +67,11 @@ class MailCardUi {
     sheetCloseBtn: byId<HTMLButtonElement>('sheetCloseBtn'),
     addAccountBtn: byId<HTMLButtonElement>('addAccountBtn'),
     accountForm: byId<HTMLFormElement>('accountForm'),
+    accountProvider: byId<HTMLSelectElement>('accountProvider'),
     accountEmail: byId<HTMLInputElement>('accountEmail'),
     accountAlias: byId<HTMLInputElement>('accountAlias'),
     accountAuthCode: byId<HTMLInputElement>('accountAuthCode'),
+    accountSubmit: byId<HTMLButtonElement>('accountSubmit'),
     accountCancel: byId<HTMLButtonElement>('accountCancel'),
     accountFormError: byId<HTMLElement>('accountFormError'),
     toast: byId<HTMLElement>('toast'),
@@ -85,6 +87,8 @@ class MailCardUi {
   private accountMap = new Map<string, AccountWithUnread>();
   private currentDetail: MailDetail | null = null;
   private toastTimer: ReturnType<typeof setTimeout> | null = null;
+  private accountMode: 'add' | 'reauth' = 'add';
+  private reauthId: string | null = null;
 
   constructor(private readonly client: DeskMailClient) {}
 
@@ -99,6 +103,9 @@ class MailCardUi {
   private async refreshAccounts(): Promise<void> {
     this.accounts = await this.client.accountsOverview();
     this.accountMap = new Map(this.accounts.map((account) => [account.id, account]));
+    if (this.state.filterAccountId && !this.accountMap.has(this.state.filterAccountId)) {
+      this.state.filterAccountId = null;
+    }
   }
 
   private totalUnread(): number {
@@ -401,8 +408,7 @@ class MailCardUi {
     this.state.view = 'manage';
     await this.refreshAccounts();
     this.renderAccountList();
-    this.elements.accountForm.hidden = true;
-    this.elements.accountFormError.hidden = true;
+    this.closeAccountForm();
     this.renderShell();
   }
 
@@ -443,37 +449,168 @@ class MailCardUi {
       status.className = 'status';
       status.textContent = statusLabel(account.status);
 
-      item.append(avatar, info, status);
+      const actions = document.createElement('div');
+      actions.className = 'account-actions';
+
+      const reauth = document.createElement('button');
+      reauth.type = 'button';
+      reauth.className = 'mini-btn';
+      reauth.textContent = '重授权';
+      reauth.addEventListener('click', () => this.openReauthForm(account));
+
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'mini-btn danger';
+      remove.textContent = '删除';
+      remove.addEventListener('click', () => {
+        void this.removeAccount(account);
+      });
+
+      actions.append(reauth, remove);
+      item.append(avatar, info, status, actions);
       this.elements.accountList.append(item);
     }
   }
 
-  private toggleAccountForm(show: boolean): void {
-    this.elements.accountForm.hidden = !show;
+  private openAddAccountForm(): void {
+    this.accountMode = 'add';
+    this.reauthId = null;
+    this.elements.accountForm.hidden = false;
     this.elements.accountFormError.hidden = true;
-    if (show) {
-      this.elements.accountEmail.focus();
-    } else {
-      this.elements.accountForm.reset();
+    this.elements.accountForm.reset();
+    this.elements.accountProvider.disabled = false;
+    this.elements.accountEmail.disabled = false;
+    this.elements.accountAlias.disabled = false;
+    this.elements.accountSubmit.disabled = false;
+    this.elements.accountSubmit.textContent = '添加账号';
+    this.elements.accountEmail.focus();
+  }
+
+  private openReauthForm(account: AccountWithUnread): void {
+    this.accountMode = 'reauth';
+    this.reauthId = account.id;
+    this.elements.accountForm.hidden = false;
+    this.elements.accountFormError.hidden = true;
+    this.elements.accountProvider.value = account.provider;
+    this.elements.accountEmail.value = account.email;
+    this.elements.accountAlias.value = account.alias;
+    this.elements.accountAuthCode.value = '';
+    this.elements.accountProvider.disabled = true;
+    this.elements.accountEmail.disabled = true;
+    this.elements.accountAlias.disabled = true;
+    this.elements.accountSubmit.disabled = false;
+    this.elements.accountSubmit.textContent = '重新授权';
+    this.elements.accountAuthCode.focus();
+  }
+
+  private closeAccountForm(): void {
+    this.accountMode = 'add';
+    this.reauthId = null;
+    this.elements.accountForm.hidden = true;
+    this.elements.accountFormError.hidden = true;
+    this.elements.accountForm.reset();
+    this.elements.accountProvider.disabled = false;
+    this.elements.accountEmail.disabled = false;
+    this.elements.accountAlias.disabled = false;
+    this.elements.accountSubmit.disabled = false;
+    this.elements.accountSubmit.textContent = '添加账号';
+    this.elements.accountCancel.disabled = false;
+  }
+
+  private setFormBusy(busy: boolean): void {
+    this.elements.accountSubmit.disabled = busy;
+    this.elements.accountCancel.disabled = busy;
+    this.elements.accountSubmit.textContent = busy
+      ? '连接中…'
+      : this.accountMode === 'reauth'
+        ? '重新授权'
+        : '添加账号';
+  }
+
+  private showFormError(message: string): void {
+    this.elements.accountFormError.textContent = message;
+    this.elements.accountFormError.hidden = false;
+  }
+
+  private async removeAccount(account: AccountWithUnread): Promise<void> {
+    const confirmed = window.confirm(
+      `删除账号 ${account.alias}（${account.email}）及其邮件与凭据？`,
+    );
+    if (!confirmed) return;
+
+    try {
+      await this.client.accounts.remove(account.id);
+      await this.refreshAccounts();
+      this.renderAccountList();
+      await this.renderList();
+      this.showToast('已删除账号');
+    } catch (error) {
+      this.showToast(errorMessage(error));
     }
   }
 
-  private submitAccountForm(event: SubmitEvent): void {
+  private async submitAccountForm(event: SubmitEvent): Promise<void> {
     event.preventDefault();
-    const email = this.elements.accountEmail.value.trim();
-    const alias = this.elements.accountAlias.value.trim();
-    const authCode = this.elements.accountAuthCode.value;
+    this.elements.accountFormError.hidden = true;
 
-    const error = validateAccountForm(email, alias, authCode);
-    if (error) {
-      this.elements.accountFormError.textContent = error;
-      this.elements.accountFormError.hidden = false;
+    if (this.accountMode === 'reauth') {
+      if (!this.reauthId) return;
+      const authCode = this.elements.accountAuthCode.value;
+      if (!authCode) {
+        this.showFormError('请输入授权码（不是登录密码）');
+        return;
+      }
+
+      this.setFormBusy(true);
+      try {
+        const result = await this.client.accounts.reauthorize(this.reauthId, authCode);
+        if (!result.ok) {
+          this.showFormError(result.error ?? '重新授权失败');
+          await this.refreshAccounts();
+          this.renderAccountList();
+          return;
+        }
+        await this.refreshAccounts();
+        this.renderAccountList();
+        await this.renderList();
+        this.closeAccountForm();
+        this.showToast('已重新授权');
+      } catch (error) {
+        this.showFormError(errorMessage(error));
+      } finally {
+        this.setFormBusy(false);
+      }
       return;
     }
 
-    this.elements.accountFormError.hidden = true;
-    this.elements.accountAuthCode.value = '';
-    this.showToast('账号添加逻辑将在账号管理任务接入（当前仅 UI 壳）');
+    const provider = this.elements.accountProvider.value as Provider;
+    const email = this.elements.accountEmail.value.trim();
+    const alias = this.elements.accountAlias.value.trim();
+    const authCode = this.elements.accountAuthCode.value;
+    const validation = validateAccountForm(email, alias, authCode);
+    if (validation) {
+      this.showFormError(validation);
+      return;
+    }
+
+    this.setFormBusy(true);
+    try {
+      await this.client.accounts.add({
+        provider,
+        email,
+        alias: alias || undefined,
+        authCode,
+      });
+      await this.refreshAccounts();
+      this.renderAccountList();
+      await this.renderList();
+      this.closeAccountForm();
+      this.showToast('账号已添加');
+    } catch (error) {
+      this.showFormError(errorMessage(error));
+    } finally {
+      this.setFormBusy(false);
+    }
   }
 
   private async copyText(): Promise<void> {
@@ -541,10 +678,16 @@ class MailCardUi {
       void this.closeAccountSheet();
     });
     this.elements.addAccountBtn.addEventListener('click', () => {
-      this.toggleAccountForm(this.elements.accountForm.hasAttribute('hidden'));
+      if (this.elements.accountForm.hidden || this.accountMode === 'reauth') {
+        this.openAddAccountForm();
+      } else {
+        this.closeAccountForm();
+      }
     });
-    this.elements.accountCancel.addEventListener('click', () => this.toggleAccountForm(false));
-    this.elements.accountForm.addEventListener('submit', (event) => this.submitAccountForm(event));
+    this.elements.accountCancel.addEventListener('click', () => this.closeAccountForm());
+    this.elements.accountForm.addEventListener('submit', (event) => {
+      void this.submitAccountForm(event);
+    });
     this.elements.importance.addEventListener('click', (event) => {
       const button = (event.target as HTMLElement).closest<HTMLButtonElement>('.imp-btn');
       const level = button?.dataset.importance as Importance | undefined;
@@ -560,6 +703,12 @@ function statusLabel(status: AccountWithUnread['status']): string {
   if (status === 'ok') return '正常';
   if (status === 'auth_failed') return '授权失效';
   return '同步失败';
+}
+
+function errorMessage(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+  const marker = message.lastIndexOf('Error: ');
+  return marker >= 0 ? message.slice(marker + 7) : message;
 }
 
 function validateAccountForm(email: string, alias: string, authCode: string): string | null {

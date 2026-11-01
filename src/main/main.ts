@@ -8,9 +8,13 @@ import { app, BrowserWindow, ipcMain } from 'electron';
 import * as path from 'node:path';
 import { compose } from '../app/compose';
 import { IPC_CHANNELS } from '../ipc/types';
+import { MOCK_ACCOUNTS } from '../app/mock-data';
+import { StubAccountService } from '../accounts/stub';
+import { AccountServiceImpl } from './accounts/real';
 import { createMessageParser } from './content/real';
+import { ImapClientImpl } from './imap/real';
 import { registerIpcHandlers } from './ipc';
-import { MainStubPlatformServices } from './platform/main-stub';
+import { MainPlatformServices } from './platform/main-platform';
 import { SqliteMailStore } from './store/sqlite';
 
 const SMOKE = process.argv.includes('--smoke');
@@ -47,11 +51,23 @@ function createWindow(): BrowserWindow {
 
 app.whenReady().then(() => {
   const dbPath = path.join(app.getPath('userData'), 'deskmail.sqlite');
-  store = SMOKE ? new SqliteMailStore(':memory:') : new SqliteMailStore(dbPath);
+  const mailStore = SMOKE ? new SqliteMailStore(':memory:') : new SqliteMailStore(dbPath);
+  store = mailStore;
 
-  const desktop = compose(new MainStubPlatformServices(), {
-    store,
+  const platform = new MainPlatformServices();
+  const accounts = SMOKE
+    ? new StubAccountService(MOCK_ACCOUNTS)
+    : new AccountServiceImpl(
+      mailStore,
+      mailStore,
+      platform.credentials,
+      () => new ImapClientImpl(),
+    );
+
+  const desktop = compose(platform, {
+    store: mailStore,
     parser: createMessageParser(),
+    accounts,
   });
   registerIpcHandlers(desktop);
 

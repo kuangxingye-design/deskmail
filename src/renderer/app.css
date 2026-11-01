@@ -107,3 +107,37 @@ body .card {
   font-size: 11px;
   line-height: 1.5;
 }
+
+.account-actions {
+  display: flex;
+  flex: none;
+  gap: 4px;
+}
+
+.mini-btn {
+  padding: 4px 7px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 10px;
+  cursor: pointer;
+  transition: 0.15s;
+}
+
+.mini-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--text);
+}
+
+.mini-btn.danger {
+  border-color: rgba(255, 111, 134, 0.3);
+  color: var(--critical);
+}
+
+.account-form input:disabled,
+.account-form select:disabled {
+  opacity: 0.55;
+}
+

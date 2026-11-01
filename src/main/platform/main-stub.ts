@@ -11,7 +11,7 @@ import type {
   WindowPlatform,
 } from '../../platform/types';
 
-class StubWindowPlatform implements WindowPlatform {
+export class StubWindowPlatform implements WindowPlatform {
   setAlwaysOnTop(_value: boolean): void {}
   setPosition(_x: number, _y: number): void {}
   getPosition(): { x: number; y: number } {
@@ -22,13 +22,13 @@ class StubWindowPlatform implements WindowPlatform {
   onFocusChange(_cb: (focused: boolean) => void): void {}
 }
 
-class StubGlobalShortcutPlatform implements GlobalShortcutPlatform {
+export class StubGlobalShortcutPlatform implements GlobalShortcutPlatform {
   register(_accel: string, _callback: () => void): boolean {
     return false;
   }
 }
 
-class StubClipboardPlatform implements ClipboardPlatform {
+export class StubClipboardPlatform implements ClipboardPlatform {
   async writeText(_text: string): Promise<void> {
     throw new Error('主进程 clipboard.writeText 未实现（#11）');
   }
@@ -37,7 +37,7 @@ class StubClipboardPlatform implements ClipboardPlatform {
   }
 }
 
-class StubCredentialPlatform implements CredentialPlatform {
+export class StubCredentialPlatform implements CredentialPlatform {
   async get(_key: string): Promise<string | null> {
     return null;
   }

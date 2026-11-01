@@ -7,7 +7,8 @@ import type { ImapClient, ProviderConfig } from '../imap/types';
 import { PROVIDER_CONFIGS } from '../imap/types';
 import type { MessageParser } from '../content/types';
 import type { MailStore } from '../store/types';
-import type { Account, Message } from '../model/types';
+import type { AccountService } from '../accounts/types';
+import type { Message } from '../model/types';
 import type { SyncEngine, SyncResult, SyncSummary } from './types';
 import { RECENT_WINDOW } from './types';
 
@@ -17,11 +18,11 @@ export class StubSyncEngine implements SyncEngine {
     private readonly createImap: (accountId: string) => ImapClient,
     private readonly parser: MessageParser,
     private readonly store: MailStore,
-    private readonly accounts: Account[],
+    private readonly accounts: AccountService,
   ) {}
 
   async syncAccount(accountId: string): Promise<SyncResult> {
-    const account = this.accounts.find((candidate) => candidate.id === accountId);
+    const account = this.accounts.list().find((candidate) => candidate.id === accountId);
     if (!account) {
       return { accountId, status: 'failed', fetched: 0, error: 'account not found' };
     }
@@ -99,7 +100,7 @@ export class StubSyncEngine implements SyncEngine {
   async syncAll(): Promise<SyncSummary> {
     const startedAt = new Date().toISOString();
     const results: SyncResult[] = [];
-    for (const account of this.accounts) {
+    for (const account of this.accounts.list()) {
       results.push(await this.syncAccount(account.id));
     }
     return { startedAt, accounts: results };
