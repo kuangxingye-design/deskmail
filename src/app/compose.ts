@@ -31,6 +31,8 @@ export interface ComposeOptions {
   store?: MailStore;
   /** 默认 mock 账号；主进程注入 SQLite + safeStorage 的真实 AccountService（#17） */
   accounts?: AccountService;
+  /** 默认 stub 同步；主进程注入真实 SyncEngine（#19） */
+  sync?: SyncEngine;
 }
 
 /**
@@ -47,7 +49,7 @@ export function compose(platform: PlatformServices, options: ComposeOptions = {}
   const parser = options.parser ?? new StubMessageParser();
 
   const accounts = options.accounts ?? new StubAccountService(MOCK_ACCOUNTS);
-  const sync = new StubSyncEngine(createImap, parser, store, accounts);
+  const sync = options.sync ?? new StubSyncEngine(createImap, parser, store, accounts);
   const inbox = new InboxServiceImpl(store, accounts);
 
   return { inbox, sync, accounts, platform };

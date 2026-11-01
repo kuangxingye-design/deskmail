@@ -46,6 +46,14 @@ class FakeImap implements ImapClient {
     return [];
   }
 
+  async fetchHeadersBefore(): Promise<HeaderBatch[]> {
+    return [];
+  }
+
+  async listUids(): Promise<number[]> {
+    return [];
+  }
+
   async fetchMessage(): Promise<RawMessage> {
     throw new Error('not used');
   }

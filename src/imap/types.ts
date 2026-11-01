@@ -54,6 +54,10 @@ export interface ImapClient {
   connect(cfg: ProviderConfig, credentials: ImapCredentials): Promise<void>;
   /** 按 UID 从高到低取一段头信息；uidFrom 含该 UID */
   fetchHeaders(uidFrom: number, limit: number): Promise<HeaderBatch[]>;
+  /** 取比 uidBefore 更早的一段头信息（按 UID 从高到低）；用于滚动加载 */
+  fetchHeadersBefore(uidBefore: number, limit: number): Promise<HeaderBatch[]>;
+  /** 当前文件夹全部 UID；用于服务器对账 */
+  listUids(): Promise<number[]>;
   /** 取单封原始 MIME 字节；不做解析 */
   fetchMessage(uid: number): Promise<RawMessage>;
   /** 打开即已读：IMAP STORE +FLAGS (\Seen)，失败不阻塞本地 */

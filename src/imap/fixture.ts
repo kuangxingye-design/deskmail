@@ -35,22 +35,40 @@ export class FixtureImapClient implements ImapClient {
     // 桩：不建立真实连接（#8 的真实实现见 src/main/imap/real.ts）
   }
 
+  private toHeader(message: FixtureMessage): HeaderBatch {
+    return {
+      imapUid: message.imapUid,
+      messageId: message.messageId,
+      senderName: message.senderName,
+      senderEmail: message.senderEmail,
+      subject: message.subject,
+      receivedAt: message.receivedAt,
+      isRead: message.isRead || this.seen.has(message.imapUid),
+    };
+  }
+
   async fetchHeaders(uidFrom: number, limit: number): Promise<HeaderBatch[]> {
     const headers: HeaderBatch[] = [];
     for (const message of this.byUid.values()) {
       if (message.imapUid < uidFrom) continue;
-      headers.push({
-        imapUid: message.imapUid,
-        messageId: message.messageId,
-        senderName: message.senderName,
-        senderEmail: message.senderEmail,
-        subject: message.subject,
-        receivedAt: message.receivedAt,
-        isRead: message.isRead || this.seen.has(message.imapUid),
-      });
+      headers.push(this.toHeader(message));
     }
     headers.sort((a, b) => b.imapUid - a.imapUid);
     return headers.slice(0, Math.max(0, limit));
+  }
+
+  async fetchHeadersBefore(uidBefore: number, limit: number): Promise<HeaderBatch[]> {
+    const headers: HeaderBatch[] = [];
+    for (const message of this.byUid.values()) {
+      if (message.imapUid >= uidBefore) continue;
+      headers.push(this.toHeader(message));
+    }
+    headers.sort((a, b) => b.imapUid - a.imapUid);
+    return headers.slice(0, Math.max(0, limit));
+  }
+
+  async listUids(): Promise<number[]> {
+    return [...this.byUid.keys()];
   }
 
   async fetchMessage(uid: number): Promise<RawMessage> {

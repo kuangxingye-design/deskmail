@@ -8,7 +8,7 @@
     "build": "tsc -p tsconfig.main.json && node scripts/build-renderer.mjs",
     "typecheck": "tsc -p tsconfig.main.json --noEmit && tsc -p tsconfig.renderer.json",
     "lint": "eslint .",
-    "test": "node --experimental-sqlite --import tsx --test tests/imap.test.ts tests/content.test.ts tests/store.test.ts tests/accounts.test.ts",
+    "test": "node --experimental-sqlite --import tsx --test tests/imap.test.ts tests/content.test.ts tests/store.test.ts tests/accounts.test.ts tests/sync.test.ts",
     "start": "npm run build && electron .",
     "smoke": "npm run build && electron . --smoke",
     "imap:test": "npm run build && node dist/main/imap/test-cli.js"

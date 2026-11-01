@@ -93,10 +93,35 @@ class MailCardUi {
   constructor(private readonly client: DeskMailClient) {}
 
   async init(): Promise<void> {
+    this.client.onSyncUpdated(() => {
+      void this.handleSyncUpdate();
+    });
     await this.refreshAccounts();
     this.bindEvents();
     this.renderShell();
     await this.renderList();
+    this.renderFilterTrigger();
+  }
+
+  private async handleSyncUpdate(): Promise<void> {
+    await this.refreshAccounts();
+    if (this.state.view === 'list') {
+      await this.renderList();
+      return;
+    }
+    if (this.state.view === 'manage') {
+      this.renderAccountList();
+      this.renderShell();
+      return;
+    }
+    if (this.state.currentId && !this.currentDetail?.bodyText) {
+      const detail = await this.client.detail(this.state.currentId);
+      if (detail) {
+        this.currentDetail = detail;
+        this.renderDetail(detail);
+      }
+    }
+    this.renderShell();
     this.renderFilterTrigger();
   }
 
@@ -606,6 +631,9 @@ class MailCardUi {
       await this.renderList();
       this.closeAccountForm();
       this.showToast('账号已添加');
+      void this.client.syncAll().catch((error) => {
+        console.error('[deskmail] post-add sync failed:', error);
+      });
     } catch (error) {
       this.showFormError(errorMessage(error));
     } finally {
@@ -790,17 +818,16 @@ async function boot(): Promise<void> {
     return;
   }
 
-  try {
-    await client.syncAll();
-  } catch (error) {
-    console.error('[deskmail] sync failed:', error);
-  }
-
   const ui = new MailCardUi(client);
   await ui.init();
 
   if (location.hash === '#smoke') {
+    await client.syncAll();
     await runSmoke(client);
+  } else {
+    void client.syncAll().catch((error) => {
+      console.error('[deskmail] sync failed:', error);
+    });
   }
 }
 

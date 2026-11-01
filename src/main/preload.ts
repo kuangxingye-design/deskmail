@@ -16,6 +16,9 @@ contextBridge.exposeInMainWorld('deskmail', {
   setImportance: (id: string, level: Importance) =>
     ipcRenderer.invoke('deskmail:inbox:set-importance', id, level),
   accountsOverview: () => ipcRenderer.invoke('deskmail:accounts:overview'),
+  onSyncUpdated: (callback: () => void) => {
+    ipcRenderer.on('deskmail:sync:updated', () => callback());
+  },
   accounts: {
     add: (input: AddAccountInput) => ipcRenderer.invoke('deskmail:accounts:add', input),
     update: (id: string, patch: Partial<Pick<Account, 'alias' | 'color'>>) =>
