@@ -1,12 +1,20 @@
 /**
- * Electron 主进程（最小启动壳，#2 范围）。
- * 窗口行为（置顶/磨砂/热键/移动）属 #10，本文件不做。
- * --smoke：renderer 上报校验后自动退出，供骨架 mock 链路验证。
+ * Electron 主进程（#15）：组合根迁移到主进程，renderer 经 IPC 访问 inbox / sync / accounts。
+ *
+ * 本任务仍使用 Fixture IMAP + StubSyncEngine；真实 IMAP 调度、增量、账号凭据属后续任务。
+ * 正常启动使用 userData/deskmail.sqlite；--smoke 使用内存 SQLite，保证未读基线稳定。
  */
 import { app, BrowserWindow, ipcMain } from 'electron';
 import * as path from 'node:path';
+import { compose } from '../app/compose';
+import { IPC_CHANNELS } from '../ipc/types';
+import { createMessageParser } from './content/real';
+import { registerIpcHandlers } from './ipc';
+import { MainStubPlatformServices } from './platform/main-stub';
+import { SqliteMailStore } from './store/sqlite';
 
 const SMOKE = process.argv.includes('--smoke');
+let store: SqliteMailStore | null = null;
 
 interface SmokeReport {
   ok: boolean;
@@ -19,7 +27,7 @@ function createWindow(): BrowserWindow {
   const win = new BrowserWindow({
     width: 460,
     height: 640,
-    title: 'DeskMail（骨架）',
+    title: 'DeskMail',
     show: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -28,6 +36,7 @@ function createWindow(): BrowserWindow {
       sandbox: true,
     },
   });
+
   const rendererFile = path.join(__dirname, '..', 'renderer', 'index.html');
   void win.loadFile(rendererFile, SMOKE ? { hash: 'smoke' } : undefined);
   win.once('ready-to-show', () => {
@@ -37,7 +46,16 @@ function createWindow(): BrowserWindow {
 }
 
 app.whenReady().then(() => {
-  ipcMain.on('deskmail:smoke', (_event, payload: SmokeReport) => {
+  const dbPath = path.join(app.getPath('userData'), 'deskmail.sqlite');
+  store = SMOKE ? new SqliteMailStore(':memory:') : new SqliteMailStore(dbPath);
+
+  const desktop = compose(new MainStubPlatformServices(), {
+    store,
+    parser: createMessageParser(),
+  });
+  registerIpcHandlers(desktop);
+
+  ipcMain.on(IPC_CHANNELS.smoke, (_event, payload: SmokeReport) => {
     console.log('[deskmail] renderer smoke report:', JSON.stringify(payload));
     if (SMOKE) {
       app.exit(payload && payload.ok ? 0 : 1);
@@ -45,7 +63,6 @@ app.whenReady().then(() => {
   });
 
   if (SMOKE) {
-    // 兜底：renderer 未在限时内上报视为失败
     setTimeout(() => {
       console.error('[deskmail] smoke timeout: no report from renderer');
       app.exit(2);
@@ -53,6 +70,11 @@ app.whenReady().then(() => {
   }
 
   createWindow();
+});
+
+app.on('before-quit', () => {
+  store?.close();
+  store = null;
 });
 
 app.on('window-all-closed', () => {
