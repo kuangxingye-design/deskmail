@@ -28,7 +28,8 @@ function createWindow(): BrowserWindow {
       sandbox: true,
     },
   });
-  void win.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'));
+  const rendererFile = path.join(__dirname, '..', 'renderer', 'index.html');
+  void win.loadFile(rendererFile, SMOKE ? { hash: 'smoke' } : undefined);
   win.once('ready-to-show', () => {
     win.show();
   });

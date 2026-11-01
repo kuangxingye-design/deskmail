@@ -79,7 +79,7 @@ function buildRawMessage(input: MockMessageInput): Uint8Array {
   ]
     .filter((line) => line.length > 0)
     .join('\r\n');
-  return new TextEncoder().encode(`${headers}\r\n${input.body}\r\n`);
+  return new TextEncoder().encode(`${headers}\r\n\r\n${input.body}\r\n`);
 }
 
 function mockMessage(input: MockMessageInput): FixtureMessage {

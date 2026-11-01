@@ -18,3 +18,4 @@ await esbuild.build({
 mkdirSync('dist/renderer', { recursive: true });
 cpSync('src/renderer/index.html', 'dist/renderer/index.html');
 cpSync('src/renderer/styles.css', 'dist/renderer/styles.css');
+cpSync('src/renderer/app.css', 'dist/renderer/app.css');
